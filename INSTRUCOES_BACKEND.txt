@@ -1,0 +1,10 @@
+#passos práticos — siga estes e estará pronto
+
+1. Copie os arquivos acima nas localizações indicadas.
+2. Ajuste um arquivo .env com dados do env.example com credenciais do seu PostgreSQL.
+3. Instale dependências Python e Node (pip install e npm install).
+4. Rode npm start.
+
+Chame POST http://localhost:3000/api/import (pode usar Insomnia/Postman) ou passe { "file":"seu.csv" } para processar um arquivo específico.
+
+Conecte no GET http://localhost:3000/api/logs/stream com EventSource no frontend para receber logs em tempo real.
