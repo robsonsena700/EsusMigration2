@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const logger = require('./logger');
+const { Client } = require('pg');
 
 dotenv.config({ path: path.join(process.env.BASE_DIR || __dirname, '.env') });
 
@@ -498,6 +499,172 @@ app.post('/api/config', (req, res) => {
   } catch (error) {
     logger.error(`Erro ao salvar configurações: ${error.message}`);
     res.status(500).json({ error: 'Erro ao salvar configurações' });
+  }
+});
+
+// Endpoint para testar conexão com banco
+app.post('/api/database/test', async (req, res) => {
+  const { POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD } = req.body;
+  
+  const client = new Client({
+    host: POSTGRES_HOST,
+    port: POSTGRES_PORT,
+    database: POSTGRES_DB,
+    user: POSTGRES_USER,
+    password: POSTGRES_PASSWORD,
+  });
+
+  try {
+    await client.connect();
+    await client.query('SELECT 1');
+    await client.end();
+    res.json({ status: 'success', message: 'Conexão estabelecida com sucesso' });
+  } catch (error) {
+    logger.error('Erro ao testar conexão:', error);
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// Endpoint para verificar status do banco
+app.get('/api/database/status', async (req, res) => {
+  try {
+    const client = new Client({
+      host: process.env.POSTGRES_HOST,
+      port: process.env.POSTGRES_PORT,
+      database: process.env.POSTGRES_DB,
+      user: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+    });
+    
+    await client.connect();
+    await client.query('SELECT 1');
+    await client.end();
+    res.json({ status: 'online' });
+  } catch (error) {
+    res.status(500).json({ status: 'offline', error: error.message });
+  }
+});
+
+// Arquivo para armazenar configurações salvas
+const SAVED_CONFIGS_FILE = path.join(BASE_DIR, 'saved_configs.json');
+
+// Função para carregar configurações salvas
+function loadSavedConfigs() {
+  try {
+    if (fs.existsSync(SAVED_CONFIGS_FILE)) {
+      const data = fs.readFileSync(SAVED_CONFIGS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    logger.error('Erro ao carregar configurações salvas:', error);
+  }
+  return [];
+}
+
+// Função para salvar configurações
+function saveSavedConfigs(configs) {
+  try {
+    fs.writeFileSync(SAVED_CONFIGS_FILE, JSON.stringify(configs, null, 2));
+    return true;
+  } catch (error) {
+    logger.error('Erro ao salvar configurações:', error);
+    return false;
+  }
+}
+
+// Endpoint para listar configurações salvas
+app.get('/api/config/saved', (req, res) => {
+  const configs = loadSavedConfigs();
+  res.json(configs);
+});
+
+// Endpoint para salvar uma nova configuração
+app.post('/api/config/save', (req, res) => {
+  const { name, config } = req.body;
+  
+  if (!name || !config) {
+    return res.status(400).json({ error: 'Nome e configuração são obrigatórios' });
+  }
+  
+  const configs = loadSavedConfigs();
+  const newConfig = {
+    id: Date.now().toString(),
+    name,
+    config,
+    createdAt: new Date().toISOString()
+  };
+  
+  configs.push(newConfig);
+  
+  if (saveSavedConfigs(configs)) {
+    res.json({ success: true, config: newConfig });
+  } else {
+    res.status(500).json({ error: 'Erro ao salvar configuração' });
+  }
+});
+
+// Endpoint para carregar uma configuração específica
+app.get('/api/config/load/:id', (req, res) => {
+  const { id } = req.params;
+  const configs = loadSavedConfigs();
+  const config = configs.find(c => c.id === id);
+  
+  if (config) {
+    res.json(config);
+  } else {
+    res.status(404).json({ error: 'Configuração não encontrada' });
+  }
+});
+
+// Endpoint para deletar uma configuração
+app.delete('/api/config/saved/:id', (req, res) => {
+  const { id } = req.params;
+  const configs = loadSavedConfigs();
+  const filteredConfigs = configs.filter(c => c.id !== id);
+  
+  if (saveSavedConfigs(filteredConfigs)) {
+    res.json({ success: true });
+  } else {
+    res.status(500).json({ error: 'Erro ao deletar configuração' });
+  }
+});
+
+// Endpoint para upload de CSV
+const multer = require('multer');
+const upload = multer({ dest: CSV_DIR });
+
+app.post('/api/csv/upload', upload.single('csvFile'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+  }
+  
+  const originalName = req.file.originalname;
+  const newPath = path.join(CSV_DIR, originalName);
+  
+  try {
+    // Verificar se o arquivo de destino já existe e removê-lo
+    if (fs.existsSync(newPath)) {
+      fs.unlinkSync(newPath);
+      logger.info(`Arquivo existente removido: ${originalName}`);
+    }
+    
+    // Mover o arquivo temporário para o destino final
+    fs.renameSync(req.file.path, newPath);
+    logger.info(`Arquivo CSV enviado: ${originalName}`);
+    res.json({ success: true, filename: originalName });
+  } catch (error) {
+    logger.error('Erro ao mover arquivo:', error);
+    
+    // Tentar limpar o arquivo temporário em caso de erro
+    try {
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+    } catch (cleanupError) {
+      logger.error('Erro ao limpar arquivo temporário:', cleanupError);
+    }
+    
+    res.status(500).json({ error: 'Erro ao processar arquivo: ' + error.message });
   }
 });
 

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "1757798626820",
+    "name": "tabela",
+    "config": {
+      "POSTGRES_DB": "esus",
+      "POSTGRES_USER": "postgres",
+      "POSTGRES_PASSWORD": "f8Qzd~snyUW{#-JWX0x+{vbD4@8pk",
+      "POSTGRES_HOST": "127.0.0.1",
+      "POSTGRES_PORT": "5433",
+      "TABLE_NAME": "public.tl_cds_cad_individual"
+    },
+    "createdAt": "2025-09-13T21:23:46.820Z"
+  }
+]

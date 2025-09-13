@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import MigratorDashboard from './components/MigratorDashboard'
-import ConfigurationPanel from './components/ConfigurationPanel'
+import UnifiedDashboard from './components/UnifiedDashboard'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import LoadingSpinner from './components/LoadingSpinner'
@@ -97,48 +96,18 @@ function App() {
           {/* Main Content */}
           <main className="flex-1 container mx-auto px-4 py-6 max-w-7xl">
             <Routes>
-              {/* Rota principal - Dashboard */}
+              {/* Rota principal - Dashboard Unificado */}
               <Route 
                 path="/" 
                 element={
-                  <MigratorDashboard 
+                  <UnifiedDashboard 
                     systemStatus={systemStatus}
                     onStatusUpdate={setSystemStatus}
                   />
                 } 
               />
               
-              {/* Rota para dashboard (alias) */}
-              <Route 
-                path="/dashboard" 
-                element={<Navigate to="/" replace />} 
-              />
-              
-              {/* Rota para migração (futura expansão) */}
-              <Route 
-                path="/migration" 
-                element={<Navigate to="/" replace />} 
-              />
-              
-              {/* Rota para logs (futura expansão) */}
-              <Route 
-                path="/logs" 
-                element={<Navigate to="/" replace />} 
-              />
-              
-              {/* Rota para configurações */}
-              <Route 
-                path="/settings" 
-                element={<ConfigurationPanel />} 
-              />
-              
-              {/* Rota para configuração (alias) */}
-              <Route 
-                path="/config" 
-                element={<Navigate to="/settings" replace />} 
-              />
-              
-              {/* Fallback para rotas não encontradas */}
+              {/* Todas as outras rotas redirecionam para a página principal */}
               <Route 
                 path="*" 
                 element={<Navigate to="/" replace />} 

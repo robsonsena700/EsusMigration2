@@ -1,6 +1,5 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Activity, Database, Server, Clock, Settings, Home } from 'lucide-react'
+import { Activity, Database, Server, Clock } from 'lucide-react'
 
 const Header = ({ systemStatus }) => {
   const getStatusColor = (status) => {
@@ -36,26 +35,18 @@ const Header = ({ systemStatus }) => {
       <div className="container mx-auto px-4 py-4 max-w-7xl">
         <div className="flex items-center justify-between">
           {/* Logo e Título */}
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-primary-600 rounded-lg">
-                <Activity className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  e-SUS Migrator
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Sistema de Migração de Dados
-                </p>
-              </div>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-center w-10 h-10 bg-primary-600 rounded-lg">
+              <Activity className="w-6 h-6 text-white" />
             </div>
-            
-            {/* Navegação */}
-            <nav className="flex items-center space-x-1">
-              <NavigationLink to="/" icon={Home} label="Dashboard" />
-              <NavigationLink to="/settings" icon={Settings} label="Configurações" />
-            </nav>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                e-SUS Migrator
+              </h1>
+              <p className="text-sm text-gray-600">
+                Sistema de Migração de Dados
+              </p>
+            </div>
           </div>
 
           {/* Status do Sistema */}
@@ -90,24 +81,6 @@ const Header = ({ systemStatus }) => {
   )
 }
 
-// Componente de navegação
-const NavigationLink = ({ to, icon: Icon, label }) => {
-  const location = useLocation()
-  const isActive = location.pathname === to
-  
-  return (
-    <Link
-      to={to}
-      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-        isActive
-          ? 'bg-primary-100 text-primary-700'
-          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-      <span>{label}</span>
-    </Link>
-  )
-}
+
 
 export default Header

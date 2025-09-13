@@ -224,7 +224,7 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                     'st_recusa_cad', 'st_responsavel_familiar', 'tp_cds_origem', 'co_unico_ficha',
                     'co_unico_grupo', 'co_unico_ficha_origem', 'ds_versao_ficha', 'co_cbo', 'co_etnia',
                     'co_localidade_origem', 'co_municipio', 'co_nacionalidade', 'co_pais',
-                    'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude',
+                    'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude', 'co_seq_cds_cad_individual',
                     'co_revisao'
                 ]
                 
@@ -271,6 +271,9 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                             all_values.append("'5'")
                         elif col == 'ds_versao_ficha':
                             all_values.append("'7.2.3'")
+                        elif col == 'co_seq_cds_cad_individual':
+                            # Usar a sequência para gerar o próximo valor
+                            all_values.append("nextval('seq_tb_cds_cad_individual')")
                         else:
                             all_values.append('NULL')
                 
