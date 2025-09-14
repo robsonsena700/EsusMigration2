@@ -435,6 +435,31 @@ app.get('/api/config', (req, res) => {
   }
 });
 
+// endpoint para listar tabelas disponíveis para migração
+app.get('/api/migration/tables', (req, res) => {
+  try {
+    const availableTables = [
+      {
+        name: 'public.tl_cds_cad_individual',
+        displayName: 'Cadastro Individual (Nova Tabela)',
+        description: 'Tabela tl_cds_cad_individual para cadastro de indivíduos',
+        isDefault: true
+      },
+      {
+        name: 'public.tb_cds_cad_individual',
+        displayName: 'Cadastro Individual (Tabela Original)',
+        description: 'Tabela tb_cds_cad_individual original do sistema',
+        isDefault: false
+      }
+    ];
+    
+    res.json(availableTables);
+  } catch (error) {
+    logger.error(`Erro ao listar tabelas: ${error.message}`);
+    res.status(500).json({ error: 'Erro ao listar tabelas disponíveis' });
+  }
+});
+
 // endpoint para salvar configurações
 app.post('/api/config', (req, res) => {
   try {
@@ -499,6 +524,56 @@ app.post('/api/config', (req, res) => {
   } catch (error) {
     logger.error(`Erro ao salvar configurações: ${error.message}`);
     res.status(500).json({ error: 'Erro ao salvar configurações' });
+  }
+});
+
+// endpoint para atualizar tabela de migração
+app.post('/api/migration/table', (req, res) => {
+  try {
+    const { tableName } = req.body;
+    
+    if (!tableName) {
+      return res.status(400).json({ error: 'Nome da tabela é obrigatório' });
+    }
+    
+    // Validar se a tabela está na lista de tabelas permitidas
+    const allowedTables = ['public.tl_cds_cad_individual', 'public.tb_cds_cad_individual'];
+    if (!allowedTables.includes(tableName)) {
+      return res.status(400).json({ error: 'Tabela não permitida' });
+    }
+    
+    const envPath = path.join(BASE_DIR, '.env');
+    let envContent = '';
+    
+    // Ler arquivo .env existente
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf8');
+    }
+    
+    // Atualizar ou adicionar TABLE_NAME
+    const lines = envContent.split('\n');
+    let tableNameUpdated = false;
+    
+    const updatedLines = lines.map(line => {
+      if (line.startsWith('TABLE_NAME=')) {
+        tableNameUpdated = true;
+        return `TABLE_NAME=${tableName}`;
+      }
+      return line;
+    });
+    
+    // Se TABLE_NAME não existia, adicionar
+    if (!tableNameUpdated) {
+      updatedLines.push(`TABLE_NAME=${tableName}`);
+    }
+    
+    fs.writeFileSync(envPath, updatedLines.join('\n'));
+    
+    logger.info(`Tabela de migração atualizada para: ${tableName}`);
+    res.json({ message: 'Tabela de migração atualizada com sucesso', tableName });
+  } catch (error) {
+    logger.error(`Erro ao atualizar tabela de migração: ${error.message}`);
+    res.status(500).json({ error: 'Erro ao atualizar tabela de migração' });
   }
 });
 
@@ -632,6 +707,10 @@ app.delete('/api/config/saved/:id', (req, res) => {
 // Endpoint para upload de CSV
 const multer = require('multer');
 const upload = multer({ dest: CSV_DIR });
+
+// Importar rotas de logs do PostgreSQL
+const postgresqlLogsRoutes = require('./backend/routes/postgresql-logs');
+app.use('/api/postgresql-logs', postgresqlLogsRoutes);
 
 app.post('/api/csv/upload', upload.single('csvFile'), (req, res) => {
   if (!req.file) {

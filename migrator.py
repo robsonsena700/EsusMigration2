@@ -210,25 +210,46 @@ def detect_encoding(file_path):
     # Se nenhuma codificação funcionar, usa utf-8 com ignore
     return 'utf-8'
 
-def map_csv_columns_to_db(csv_columns):
+def map_csv_columns_to_db(csv_columns, table_name):
     """Mapeia colunas do CSV para colunas da tabela do banco"""
-    column_mapping = {
-        'Nome': 'no_cidadao',
-        'CPF/CNS': 'nu_cpf_cidadao',
-        'Data de nascimento': 'dt_nascimento',
-        'Sexo': 'co_sexo',
-        'Telefone celular': 'nu_celular_cidadao',
-        'Endereço': 'ds_endereco',
-        'Nome equipe': 'no_equipe',
-        'INE equipe': 'ine_equipe',
-        'Microárea': 'nu_micro_area',
-        'Idade': 'idade_calculada',
-        'Identidade de gênero': 'identidade_genero',
-        'Telefone residencial': 'telefone_residencial',
-        'Telefone de contato': 'telefone_contato',
-        'Última atualização cadastral': 'dt_ultima_atualizacao',
-        'Origem': 'origem_cadastro'
-    }
+    # Mapeamento para tabela tl_cds_cad_individual (nova)
+    if 'tl_cds_cad_individual' in table_name:
+        column_mapping = {
+            'Nome': 'no_cidadao',
+            'CPF/CNS': 'nu_cpf_cidadao',
+            'Data de nascimento': 'dt_nascimento',
+            'Sexo': 'co_sexo',
+            'Telefone celular': 'nu_celular_cidadao',
+            'Endereço': 'ds_endereco',
+            'Nome equipe': 'no_equipe',
+            'INE equipe': 'ine_equipe',
+            'Microárea': 'nu_micro_area',
+            'Idade': 'idade_calculada',
+            'Identidade de gênero': 'identidade_genero',
+            'Telefone residencial': 'telefone_residencial',
+            'Telefone de contato': 'telefone_contato',
+            'Última atualização cadastral': 'dt_ultima_atualizacao',
+            'Origem': 'origem_cadastro'
+        }
+    else:
+        # Mapeamento original para outras tabelas
+        column_mapping = {
+            'Nome': 'no_cidadao',
+            'CPF/CNS': 'nu_cpf_cidadao',
+            'Data de nascimento': 'dt_nascimento',
+            'Sexo': 'co_sexo',
+            'Telefone celular': 'nu_celular_cidadao',
+            'Endereço': 'ds_endereco',
+            'Nome equipe': 'no_equipe',
+            'INE equipe': 'ine_equipe',
+            'Microárea': 'nu_micro_area',
+            'Idade': 'idade_calculada',
+            'Identidade de gênero': 'identidade_genero',
+            'Telefone residencial': 'telefone_residencial',
+            'Telefone de contato': 'telefone_contato',
+            'Última atualização cadastral': 'dt_ultima_atualizacao',
+            'Origem': 'origem_cadastro'
+        }
     
     mapped_columns = {}
     for csv_col in csv_columns:
@@ -273,7 +294,7 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
             emit_event({"type":"csv_columns", "columns": csv_columns})
 
             # Mapear colunas do CSV para colunas do banco
-            column_mapping = map_csv_columns_to_db(csv_columns)
+            column_mapping = map_csv_columns_to_db(csv_columns, table_name)
             
             # Verificar quais colunas mapeadas existem na tabela
             valid_columns = []
@@ -447,22 +468,40 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                              escaped = str(val).replace("'", "''")
                              values.append(f"'{escaped}'")
 
-                # Definir todas as colunas conforme modelo
-                all_columns = [
-                    'co_tipo_revisao', 'nu_cns_cidadao', 'nu_micro_area', 'nu_cpf_cidadao',
-                    'nu_cpf_responsavel', 'dt_cad_individual', 'dt_entrada_brasil', 'dt_nascimento',
-                    'dt_nascimento_responsavel', 'dt_naturalizacao', 'dt_obito', 'st_desconhece_nome_mae',
-                    'st_desconhece_nome_pai', 'ds_email_cidadao', 'st_atualizacao', 'no_cidadao',
-                    'no_cidadao_filtro', 'no_mae_cidadao', 'no_pai_cidadao', 'no_social_cidadao',
-                    'nu_cartao_sus_responsavel', 'nu_pis_pasep', 'nu_celular_cidadao', 'nu_declaracao_obito',
-                    'ds_portaria_naturalizacao', 'ds_rg_recusa_cad', 'co_sexo', 'st_ficha', 'st_versao_atual',
-                    'st_erro_inativacao', 'st_fora_area', 'st_gerado_automaticamente', 'st_ficha_inativa',
-                    'st_recusa_cad', 'st_responsavel_familiar', 'tp_cds_origem', 'co_unico_ficha',
-                    'co_unico_grupo', 'co_unico_ficha_origem', 'ds_versao_ficha', 'co_cbo', 'co_etnia',
-                    'co_localidade_origem', 'co_municipio', 'co_nacionalidade', 'co_pais',
-                    'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude', 'co_seq_cds_cad_individual',
-                    'co_revisao'
-                ]
+                # Definir colunas conforme a tabela específica
+                if 'tl_cds_cad_individual' in table_name:
+                    # Colunas para a nova tabela tl_cds_cad_individual
+                    all_columns = [
+                        'co_tipo_revisao', 'nu_cns_cidadao', 'nu_micro_area', 'nu_cpf_cidadao',
+                        'nu_cpf_responsavel', 'dt_cad_individual', 'dt_entrada_brasil', 'dt_nascimento',
+                        'dt_nascimento_responsavel', 'dt_naturalizacao', 'dt_obito', 'st_desconhece_nome_mae',
+                        'st_desconhece_nome_pai', 'ds_email_cidadao', 'st_atualizacao', 'no_cidadao',
+                        'no_cidadao_filtro', 'no_mae_cidadao', 'no_pai_cidadao', 'no_social_cidadao',
+                        'nu_cartao_sus_responsavel', 'nu_pis_pasep', 'nu_celular_cidadao', 'nu_declaracao_obito',
+                        'ds_portaria_naturalizacao', 'ds_rg_recusa_cad', 'co_sexo', 'st_ficha', 'st_versao_atual',
+                        'st_erro_inativacao', 'st_fora_area', 'st_gerado_automaticamente', 'st_ficha_inativa',
+                        'st_recusa_cad', 'st_responsavel_familiar', 'tp_cds_origem', 'co_unico_ficha',
+                        'co_unico_grupo', 'co_unico_ficha_origem', 'ds_versao_ficha', 'co_cbo', 'co_etnia',
+                        'co_localidade_origem', 'co_municipio', 'co_nacionalidade', 'co_pais',
+                        'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude', 'co_seq_cds_cad_individual',
+                        'co_revisao'
+                    ]
+                else:
+                    # Colunas para tabela tb_cds_cad_individual (baseado na estrutura real)
+                    all_columns = [
+                        'co_seq_cds_cad_individual', 'nu_cns_cidadao', 'nu_micro_area', 'nu_cpf_cidadao',
+                        'nu_cpf_responsavel', 'dt_cad_individual', 'dt_entrada_brasil', 'dt_nascimento',
+                        'dt_nascimento_responsavel', 'dt_naturalizacao', 'dt_obito', 'st_desconhece_nome_mae',
+                        'st_desconhece_nome_pai', 'ds_email_cidadao', 'st_atualizacao', 'no_cidadao',
+                        'no_cidadao_filtro', 'no_mae_cidadao', 'no_pai_cidadao', 'no_social_cidadao',
+                        'nu_cartao_sus_responsavel', 'nu_pis_pasep', 'nu_celular_cidadao', 'nu_declaracao_obito',
+                        'ds_portaria_naturalizacao', 'ds_rg_recusa_cad', 'co_sexo', 'st_ficha', 'st_versao_atual',
+                        'st_erro_inativacao', 'st_fora_area', 'st_gerado_automaticamente', 'st_ficha_inativa',
+                        'st_recusa_cad', 'st_responsavel_familiar', 'tp_cds_origem', 'co_unico_ficha',
+                        'co_unico_grupo', 'co_unico_ficha_origem', 'ds_versao_ficha', 'co_cbo', 'co_etnia',
+                        'co_localidade_origem', 'co_municipio', 'co_nacionalidade', 'co_pais',
+                        'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude'
+                    ]
                 
                 # Criar valores para todas as colunas com regras específicas
                 all_values = []
@@ -481,8 +520,9 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                         all_values.append(val)
                     else:
                         # Valores padrão conforme modelo com regras específicas
-                        if col == 'co_tipo_revisao':
-                            all_values.append("'0'")
+                        if col == 'co_seq_cds_cad_individual':
+                            # Usar sequência para gerar valor único
+                            all_values.append("nextval('seq_tb_cds_cad_individual')")
                         elif col == 'dt_cad_individual':
                             all_values.append(f"'{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}'")
                         elif col == 'st_desconhece_nome_mae':
@@ -625,8 +665,11 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                         elif col == 'ds_versao_ficha':
                             all_values.append("'7.2.3'")
                         elif col == 'co_seq_cds_cad_individual':
-                            # Usar a sequência para gerar o próximo valor
-                            all_values.append("nextval('seq_tb_cds_cad_individual')")
+                            # Usar a sequência apropriada baseada na tabela
+                            if 'tl_cds_cad_individual' in table_name:
+                                all_values.append("nextval('seq_tl_cds_cad_individual')")
+                            else:
+                                all_values.append("nextval('seq_tb_cds_cad_individual')")
                         else:
                             all_values.append('NULL')
                 
@@ -654,8 +697,11 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
             # salva em arquivo
             if sql_file:
                 with open(sql_file, 'w', encoding='utf-8') as f:
-                    # Adicionar criação da sequência no início do arquivo
-                    sequence_creation = "-- Criar a sequência se ela não existir\nCREATE SEQUENCE IF NOT EXISTS seq_tb_cds_cad_individual\n    START WITH 1\n    INCREMENT BY 1\n    NO MINVALUE\n    NO MAXVALUE\n    CACHE 1;\n\n"
+                    # Adicionar criação da sequência apropriada no início do arquivo
+                    if 'tl_cds_cad_individual' in table_name:
+                        sequence_creation = "-- Criar a sequência se ela não existir\nCREATE SEQUENCE IF NOT EXISTS seq_tl_cds_cad_individual\n    START WITH 1\n    INCREMENT BY 1\n    NO MINVALUE\n    NO MAXVALUE\n    CACHE 1;\n\n"
+                    else:
+                        sequence_creation = "-- Criar a sequência se ela não existir\nCREATE SEQUENCE IF NOT EXISTS seq_tb_cds_cad_individual\n    START WITH 1\n    INCREMENT BY 1\n    NO MINVALUE\n    NO MAXVALUE\n    CACHE 1;\n\n"
                     f.write(sequence_creation)
                     f.write("\n".join(inserts))
                 emit_event({"type":"sql_saved", "file": sql_file})

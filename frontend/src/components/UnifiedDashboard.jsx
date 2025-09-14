@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LoadingSpinner, { OverlaySpinner } from './LoadingSpinner'
+import PostgreSQLLogViewer from './PostgreSQLLogViewer'
 
 const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
   // Estados do Dashboard
@@ -47,6 +48,7 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
     POSTGRES_PORT: '5432',
     TABLE_NAME: 'public.tl_cds_cad_individual'
   })
+  const [availableTables, setAvailableTables] = useState([])
   const [selectedFile, setSelectedFile] = useState('')
   const [uploadedFile, setUploadedFile] = useState(null)
   const [configLoading, setConfigLoading] = useState(false)
@@ -64,6 +66,7 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
     loadInitialData()
     fetchConfig()
     loadSavedConfigs()
+    fetchAvailableTables()
   }, [])
 
   // Polling para atualizações em tempo real
@@ -141,6 +144,50 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
       }
     } catch (error) {
       console.error('Erro ao carregar configurações:', error)
+    }
+  }
+
+  const fetchAvailableTables = async () => {
+    try {
+      const response = await fetch('/api/migration/tables')
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableTables(data)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar tabelas disponíveis:', error)
+    }
+  }
+
+  const updateSelectedTable = async (tableName) => {
+    try {
+      setConfigLoading(true)
+      const response = await fetch('/api/migration/table', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tableName })
+      })
+      
+      if (response.ok) {
+        setConfig(prev => ({ ...prev, TABLE_NAME: tableName }))
+        setMessage('Tabela de migração atualizada com sucesso!')
+        setMessageType('success')
+        toast.success('Tabela atualizada!')
+      } else {
+        const errorData = await response.json()
+        setMessage(errorData.error || 'Erro ao atualizar tabela')
+        setMessageType('error')
+        toast.error('Erro ao atualizar tabela')
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar tabela:', error)
+      setMessage('Erro de conexão ao atualizar tabela')
+      setMessageType('error')
+      toast.error('Erro de conexão')
+    } finally {
+      setConfigLoading(false)
     }
   }
 
@@ -634,15 +681,26 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tabela
+                    Tabela de Destino
                   </label>
-                  <input
-                    type="text"
-                    value={config.TABLE_NAME}
-                    onChange={(e) => setConfig({...config, TABLE_NAME: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="public.tl_cds_cad_individual"
-                  />
+                  <select
+                     value={config.TABLE_NAME}
+                     onChange={(e) => updateSelectedTable(e.target.value)}
+                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     disabled={configLoading}
+                   >
+                     <option value="">Selecione uma tabela...</option>
+                     {availableTables.map((table) => (
+                       <option key={table.name} value={table.name}>
+                         {table.displayName}
+                       </option>
+                     ))}
+                   </select>
+                   {config.TABLE_NAME && (
+                     <p className="text-sm text-gray-500 mt-1">
+                       {availableTables.find(t => t.name === config.TABLE_NAME)?.description || config.TABLE_NAME}
+                     </p>
+                   )}
                 </div>
               </div>
               
@@ -741,6 +799,10 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
               </div>
             </div>
           )}
+
+          {/* Monitoramento de Logs do PostgreSQL */}
+          <PostgreSQLLogViewer />
+
           {/* Modal para Salvar Configuração */}
           {showConfigModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
