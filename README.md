@@ -1,7 +1,6 @@
-# Cascavel CSV -> PostgreSQL Migrator (MVP)
+# Arquivo CSV -> PostgreSQL Migrator (MVP)
 
 ## Estrutura
-D:\Robson\Projetos\Cascavel
 - .env.example
 - migrator.py
 - server.js
