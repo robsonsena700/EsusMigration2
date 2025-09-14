@@ -741,38 +741,8 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Usuário
-            </label>
-            <input
-              type="text"
-              value={config.POSTGRES_USER}
-              onChange={(e) => setConfig({...config, POSTGRES_USER: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="usuário"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Senha
-            </label>
-            <input
-              type="password"
-              value={config.POSTGRES_PASSWORD}
-              onChange={(e) => setConfig({...config, POSTGRES_PASSWORD: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="senha"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Modal para Salvar Configuração */}
-      {showConfigModal && (
+          {/* Modal para Salvar Configuração */}
+          {showConfigModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Salvar Configuração</h3>
@@ -808,6 +778,8 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
           </div>
         </div>
       )}
+
+        </div>
 
       {configLoading && <OverlaySpinner />}
     </div>
