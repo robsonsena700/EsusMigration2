@@ -43,7 +43,7 @@ let migrationState = {
 
 // Endpoint para iniciar import (opcional receber { file: 'nome.csv' })
 app.post('/api/import', (req, res) => {
-  const { file } = req.body || {};
+  const { file, co_municipio } = req.body || {};
 
   if (currentProcess) {
     return res.status(409).json({ status: 'busy', message: 'Um processo já está em execução.' });
@@ -51,6 +51,7 @@ app.post('/api/import', (req, res) => {
 
   const args = [MIGRATOR, '--env-file', path.join(BASE_DIR, '.env')];
   if (file) args.push('--file', file);
+  if (co_municipio) args.push('--co-municipio', co_municipio);
 
   logger.info(`Iniciando migrator.py com args: ${args.join(' ')}`);
 
@@ -441,13 +442,13 @@ app.get('/api/migration/tables', (req, res) => {
     const availableTables = [
       {
         name: 'public.tl_cds_cad_individual',
-        displayName: 'Cadastro Individual (Nova Tabela)',
+        displayName: 'public.tl_cds_cad_individual',
         description: 'Tabela tl_cds_cad_individual para cadastro de indivíduos',
         isDefault: true
       },
       {
         name: 'public.tb_cds_cad_individual',
-        displayName: 'Cadastro Individual (Tabela Original)',
+        displayName: 'public.tb_cds_cad_individual',
         description: 'Tabela tb_cds_cad_individual original do sistema',
         isDefault: false
       }

@@ -11,6 +11,11 @@ const ConfigurationPanel = () => {
     TABLE_NAME: 'public.tl_cds_cad_individual'
   });
   
+  const [migrationOptions, setMigrationOptions] = useState({
+    co_municipio: '',
+    require_co_municipio: false
+  });
+  
   const [csvFiles, setCsvFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState('');
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -50,6 +55,13 @@ const ConfigurationPanel = () => {
 
   const handleConfigChange = (field, value) => {
     setConfig(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleMigrationOptionChange = (field, value) => {
+    setMigrationOptions(prev => ({
       ...prev,
       [field]: value
     }));
@@ -119,6 +131,11 @@ const ConfigurationPanel = () => {
       }
       
       formData.append('table_name', config.TABLE_NAME);
+      
+      // Adicionar opções de migração
+      if (migrationOptions.require_co_municipio && migrationOptions.co_municipio) {
+        formData.append('co_municipio', migrationOptions.co_municipio);
+      }
       
       const response = await fetch('/api/import', {
         method: 'POST',
@@ -268,12 +285,46 @@ const ConfigurationPanel = () => {
                 </label>
               </div>
             </div>
+            
+            <div className="option-group">
+              <h4>Opções de Migração</h4>
+              <div className="form-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={migrationOptions.require_co_municipio}
+                    onChange={(e) => handleMigrationOptionChange('require_co_municipio', e.target.checked)}
+                  />
+                  Preencher código do município obrigatoriamente
+                </label>
+                <p className="field-description">
+                  Código identificador do município onde nasceu o cidadão (chave estrangeira TB_LOCALIDADE)
+                </p>
+              </div>
+              
+              {migrationOptions.require_co_municipio && (
+                <div className="form-group">
+                  <label htmlFor="co_municipio">Código do Município *</label>
+                  <input
+                    id="co_municipio"
+                    type="text"
+                    value={migrationOptions.co_municipio}
+                    onChange={(e) => handleMigrationOptionChange('co_municipio', e.target.value)}
+                    placeholder="Ex: 1407 (Cascavel)"
+                    required={migrationOptions.require_co_municipio}
+                  />
+                  <small className="field-hint">
+                    Deixe em branco para usar NULL quando a informação não estiver disponível no CSV
+                  </small>
+                </div>
+              )}
+            </div>
           </div>
           
           <button 
             className="btn btn-success"
             onClick={handleRunMigration}
-            disabled={loading || !uploadedFile}
+            disabled={loading || !uploadedFile || (migrationOptions.require_co_municipio && !migrationOptions.co_municipio)}
           >
             {loading ? 'Executando...' : 'Executar Migração'}
           </button>

@@ -261,7 +261,34 @@ def map_csv_columns_to_db(csv_columns, table_name):
     
     return mapped_columns
 
-def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
+def get_unidade_saude_by_ine(conn, ine_equipe):
+    """
+    Busca o código da unidade de saúde pelo INE da equipe
+    """
+    if not conn or not ine_equipe:
+        return None
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT co_unidade_saude 
+            FROM tb_equipe 
+            WHERE nu_ine = %s
+        """, (ine_equipe,))
+        
+        result = cur.fetchone()
+        cur.close()
+        
+        if result:
+            return result[0]
+        else:
+            emit_event({"type": "warning", "message": f"INE equipe '{ine_equipe}' não encontrado na tabela tb_equipe"})
+            return None
+    except Exception as e:
+        emit_event({"type": "error", "message": f"Erro ao buscar unidade de saúde pelo INE {ine_equipe}: {e}"})
+        return None
+
+def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_municipio=None):
     start_time = datetime.now()
     total_rows = 0
     success_rows = 0
@@ -320,6 +347,16 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
             for index, row in enumerate(reader):
                 total_rows += 1
                 
+                # Buscar INE equipe da coluna B para determinar co_unidade_saude
+                ine_equipe = None
+                if 'INE equipe' in row:
+                    ine_equipe = str(row['INE equipe']).strip().strip('"') if row['INE equipe'] else None
+                
+                # Buscar co_unidade_saude pelo INE equipe
+                co_unidade_saude_from_ine = None
+                if ine_equipe:
+                    co_unidade_saude_from_ine = get_unidade_saude_by_ine(conn, ine_equipe)
+                
                 # Mapear dados do CSV para campos do banco
                 mapped_data = {}
                 for col in valid_columns:
@@ -327,6 +364,10 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                     val = raw.strip() if raw is not None else None
                     db_col = mapped_columns[col]
                     mapped_data[db_col] = val
+                
+                # Adicionar co_municipio se fornecido como parâmetro
+                if co_municipio:
+                    mapped_data['co_municipio'] = co_municipio
                 
                 # Validações e conversões específicas
                 # Sexo: converter texto para código baseado em tb_sexo
@@ -549,7 +590,12 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                             else:
                                 all_values.append('NULL')
                         elif col == 'co_municipio':
-                            all_values.append("'1531'")
+                            # Usar valor configurado ou NULL se não fornecido
+                            co_municipio_value = mapped_data.get('co_municipio')
+                            if co_municipio_value:
+                                all_values.append(f"'{co_municipio_value}'")
+                            else:
+                                all_values.append('NULL')
                         elif col == 'co_nacionalidade':
                             all_values.append("'1'")
                         elif col == 'co_pais':
@@ -618,7 +664,11 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                         elif col == 'co_cds_prof_cadastrante':
                             all_values.append(f"'{esus_data['co_cds_prof_cadastrante']}'")
                         elif col == 'co_unidade_saude':
-                            all_values.append(f"'{esus_data['co_unidade_saude']}'")
+                            # Usar co_unidade_saude encontrado pelo INE equipe, senão usar padrão
+                            if co_unidade_saude_from_ine:
+                                all_values.append(f"'{co_unidade_saude_from_ine}'")
+                            else:
+                                all_values.append(f"'{esus_data['co_unidade_saude']}'")
                         elif col == 'co_localidade_origem':
                             # Sempre usar 1407 (Cascavel)
                             all_values.append("'1407'")
@@ -637,27 +687,8 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
                             else:
                                 all_values.append('NULL')
                         elif col == 'nu_cartao_sus_responsavel':
-                            # Usar CPF/CNS do arquivo CSV apenas se nu_cpf_cidadao for nulo
-                            if not mapped_data.get('nu_cpf_cidadao'):
-                                # Buscar CPF/CNS da coluna original do CSV
-                                cpf_cns_value = None
-                                for csv_col in valid_columns:
-                                    if 'cpf' in csv_col.lower() or 'cns' in csv_col.lower():
-                                        try:
-                                            if csv_col in row and row[csv_col]:
-                                                cpf_cns_value = str(row[csv_col]).strip()
-                                                # Garantir 15 dígitos
-                                                if cpf_cns_value and cpf_cns_value.isdigit():
-                                                    cpf_cns_value = cpf_cns_value.zfill(15)
-                                                break
-                                        except (ValueError, KeyError):
-                                            continue
-                                if cpf_cns_value:
-                                    all_values.append(f"'{cpf_cns_value}'")
-                                else:
-                                    all_values.append('NULL')
-                            else:
-                                all_values.append('NULL')
+                            # Sempre NULL conforme solicitado
+                            all_values.append('NULL')
                         elif col == 'co_unico_grupo':
                             all_values.append(f"'{str(uuid.uuid4())}'")
                         elif col == 'co_revisao':
@@ -697,12 +728,6 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None):
             # salva em arquivo
             if sql_file:
                 with open(sql_file, 'w', encoding='utf-8') as f:
-                    # Adicionar criação da sequência apropriada no início do arquivo
-                    if 'tl_cds_cad_individual' in table_name:
-                        sequence_creation = "-- Criar a sequência se ela não existir\nCREATE SEQUENCE IF NOT EXISTS seq_tl_cds_cad_individual\n    START WITH 1\n    INCREMENT BY 1\n    NO MINVALUE\n    NO MAXVALUE\n    CACHE 1;\n\n"
-                    else:
-                        sequence_creation = "-- Criar a sequência se ela não existir\nCREATE SEQUENCE IF NOT EXISTS seq_tb_cds_cad_individual\n    START WITH 1\n    INCREMENT BY 1\n    NO MINVALUE\n    NO MAXVALUE\n    CACHE 1;\n\n"
-                    f.write(sequence_creation)
                     f.write("\n".join(inserts))
                 emit_event({"type":"sql_saved", "file": sql_file})
 
@@ -727,6 +752,7 @@ def main():
     parser = argparse.ArgumentParser(description="CSV -> SQL migrator")
     parser.add_argument("--env-file", default=ENV_FILE_DEFAULT, help="caminho para o .env")
     parser.add_argument("--file", default=None, help="opcional: processar apenas 1 CSV (caminho relativo ao CSV_DIR ou absoluto)")
+    parser.add_argument("--co-municipio", default=None, help="código do município onde nasceu o cidadão (opcional)")
     args = parser.parse_args()
 
     try:
@@ -768,8 +794,11 @@ def main():
         emit_event({"type":"info", "message":"Nenhum CSV encontrado para processar."})
     else:
         for csv_file in files_to_process:
-            sql_file = os.path.join(SQL_DIR, os.path.basename(csv_file).rsplit(".",1)[0] + ".sql")
-            csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn)
+            # Gerar nome do arquivo SQL baseado na tabela de destino
+            base_name = os.path.basename(csv_file).rsplit(".",1)[0]
+            table_suffix = table_name.replace("public.", "").replace(".", "_")
+            sql_file = os.path.join(SQL_DIR, f"{table_suffix}_{base_name}.sql")
+            csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn, getattr(args, 'co_municipio', None))
 
     if conn:
         conn.close()
