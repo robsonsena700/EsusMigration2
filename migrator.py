@@ -288,6 +288,33 @@ def get_unidade_saude_by_ine(conn, ine_equipe):
         emit_event({"type": "error", "message": f"Erro ao buscar unidade de saúde pelo INE {ine_equipe}: {e}"})
         return None
 
+def get_cnes_by_unidade_saude(conn, co_unidade_saude):
+    """
+    Busca o CNES da unidade de saúde pelo código da unidade
+    """
+    if not conn or not co_unidade_saude:
+        return None
+    
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT nu_cnes 
+            FROM tb_unidade_saude 
+            WHERE co_seq_unidade_saude = %s
+        """, (co_unidade_saude,))
+        
+        result = cur.fetchone()
+        cur.close()
+        
+        if result:
+            return result[0]
+        else:
+            emit_event({"type": "warning", "message": f"Unidade de saúde '{co_unidade_saude}' não encontrada na tabela tb_unidade_saude"})
+            return None
+    except Exception as e:
+        emit_event({"type": "error", "message": f"Erro ao buscar CNES da unidade {co_unidade_saude}: {e}"})
+        return None
+
 def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_municipio=None):
     start_time = datetime.now()
     total_rows = 0
@@ -467,6 +494,15 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                     else:
                         validated_name = validate_name(nome_mae) if nome_mae else None
                         mapped_data['no_mae_cidadao'] = validated_name
+                
+                # Nome do cidadão: validação específica
+                if 'no_cidadao' in mapped_data:
+                    nome_cidadao = mapped_data['no_cidadao']
+                    if nome_cidadao:
+                        validated_name = validate_name(nome_cidadao)
+                        mapped_data['no_cidadao'] = validated_name
+                    else:
+                        mapped_data['no_cidadao'] = None
                 
                 # Raça/Cor e Etnia: regras específicas
                 raca_cor = mapped_data.get('co_raca_cor')
@@ -664,20 +700,32 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                         elif col == 'co_cds_prof_cadastrante':
                             all_values.append(f"'{esus_data['co_cds_prof_cadastrante']}'")
                         elif col == 'co_unidade_saude':
-                            # Usar co_unidade_saude encontrado pelo INE equipe, senão usar padrão
-                            if co_unidade_saude_from_ine:
-                                all_values.append(f"'{co_unidade_saude_from_ine}'")
+                            # Diferenciação entre tabelas para co_unidade_saude
+                            if 'tl_cds_cad_individual' in table_name:
+                                # Para tl_cds_cad_individual: sempre NULL conforme especificação
+                                all_values.append('NULL')
                             else:
-                                all_values.append(f"'{esus_data['co_unidade_saude']}'")
+                                # Para tb_cds_cad_individual: usar co_unidade_saude encontrado pelo INE equipe, senão usar padrão
+                                if co_unidade_saude_from_ine:
+                                    all_values.append(f"'{co_unidade_saude_from_ine}'")
+                                else:
+                                    all_values.append(f"'{esus_data['co_unidade_saude']}'")
                         elif col == 'co_localidade_origem':
                             # Sempre usar 1407 (Cascavel)
                             all_values.append("'1407'")
                         elif col == 'co_unico_ficha':
-                            co_unico_ficha = generate_co_unico_ficha(esus_data['nu_cnes'])
+                            # Usar CNES da unidade específica do paciente
+                            unidade_final = co_unidade_saude_from_ine if co_unidade_saude_from_ine else esus_data['co_unidade_saude']
+                            cnes_unidade = get_cnes_by_unidade_saude(conn, unidade_final)
+                            cnes_para_ficha = cnes_unidade if cnes_unidade else esus_data['nu_cnes']
+                            co_unico_ficha = generate_co_unico_ficha(cnes_para_ficha)
                             all_values.append(f"'{co_unico_ficha}'")
                         elif col == 'co_unico_ficha_origem':
                             # Usar a mesma lógica do co_unico_ficha
-                            co_unico_ficha_origem = generate_co_unico_ficha(esus_data['nu_cnes'])
+                            unidade_final = co_unidade_saude_from_ine if co_unidade_saude_from_ine else esus_data['co_unidade_saude']
+                            cnes_unidade = get_cnes_by_unidade_saude(conn, unidade_final)
+                            cnes_para_ficha = cnes_unidade if cnes_unidade else esus_data['nu_cnes']
+                            co_unico_ficha_origem = generate_co_unico_ficha(cnes_para_ficha)
                             all_values.append(f"'{co_unico_ficha_origem}'")
                         elif col == 'no_cidadao_filtro':
                             # Usar nome do cidadão em minúsculas

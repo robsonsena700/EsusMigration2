@@ -501,7 +501,7 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Status</p>
                   <p className={`text-lg font-semibold ${
@@ -531,6 +531,39 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
                   )}
                 </div>
               </div>
+              
+              {/* Barra de Progresso */}
+              {(migrationStatus === 'running' || migrationStatus === 'completed') && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>
+                      {migrationProgress.current} de {migrationProgress.total} arquivos
+                    </span>
+                    <span>
+                      {migrationProgress.total > 0 
+                        ? Math.round((migrationProgress.current / migrationProgress.total) * 100)
+                        : 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        migrationStatus === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
+                      }`}
+                      style={{ 
+                        width: `${migrationProgress.total > 0 
+                          ? (migrationProgress.current / migrationProgress.total) * 100 
+                          : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                  {migrationProgress.currentFile && (
+                    <p className="text-xs text-gray-500 truncate">
+                      Processando: {migrationProgress.currentFile}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -546,7 +579,7 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
                     className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <Play className="w-4 h-4" />
-                    Processar ({selectedFiles.length})
+                    Gerar
                   </button>
                   {csvFiles.length > 0 && (
                     <button
