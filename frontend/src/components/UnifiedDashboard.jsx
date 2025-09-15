@@ -400,6 +400,18 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
     }
   }
 
+  // Função para selecionar todos os arquivos
+  const selectAllFiles = () => {
+    setSelectedFiles(csvFiles.map(f => f.name))
+    toast.success(`${csvFiles.length} arquivo(s) selecionado(s)`)
+  }
+
+  // Função para limpar seleção
+  const clearSelection = () => {
+    setSelectedFiles([])
+    toast.success('Seleção limpa')
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -536,6 +548,15 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
                     <Play className="w-4 h-4" />
                     Processar ({selectedFiles.length})
                   </button>
+                  {csvFiles.length > 0 && (
+                    <button
+                      onClick={selectedFiles.length === csvFiles.length ? clearSelection : selectAllFiles}
+                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      {selectedFiles.length === csvFiles.length ? 'Limpar Seleção' : 'Selecionar Todos'}
+                    </button>
+                  )}
                   <button
                     onClick={fetchCsvFiles}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
