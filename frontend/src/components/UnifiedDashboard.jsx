@@ -17,11 +17,14 @@ import {
   Save,
   TestTube,
   Wifi,
-  WifiOff
+  WifiOff,
+  FolderOpen,
+  X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LoadingSpinner, { OverlaySpinner } from './LoadingSpinner'
 import PostgreSQLLogViewer from './PostgreSQLLogViewer'
+import FATTablesViewer from './FATTablesViewer'
 
 const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
   // Estados do Dashboard
@@ -60,6 +63,7 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
   const [savedConfigs, setSavedConfigs] = useState([])
   const [showConfigModal, setShowConfigModal] = useState(false)
   const [configName, setConfigName] = useState('')
+  const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard', 'config', 'logs', 'fat-tables'
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -442,10 +446,73 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
         </div>
       </div>
 
-      {/* Dashboard e Configurações Unificados */}
+      {/* Navegação por Tabs */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'dashboard'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Dashboard
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('fat-tables')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'fat-tables'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4" />
+                Tabelas FAT
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'config'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Configurações
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'logs'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                Logs
+              </div>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Conteúdo das Tabs */}
       <div className="space-y-6">
-          {/* Status Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Tab: Dashboard */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            {/* Status Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -654,7 +721,17 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
               )}
             </div>
           </div>
-        {/* Seção de Configurações */}
+          </div>
+        )}
+
+        {/* Tab: Tabelas FAT */}
+        {activeTab === 'fat-tables' && (
+          <FATTablesViewer />
+        )}
+
+        {/* Tab: Configurações */}
+        {activeTab === 'config' && (
+          <div className="space-y-6">
           {/* Configurações de Conexão */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6 border-b border-gray-200">
@@ -853,9 +930,13 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
               </div>
             </div>
           )}
+          </div>
+        )}
 
-          {/* Monitoramento de Logs do PostgreSQL */}
+        {/* Tab: Logs */}
+        {activeTab === 'logs' && (
           <PostgreSQLLogViewer />
+        )}
 
           {/* Modal para Salvar Configuração */}
           {showConfigModal && (

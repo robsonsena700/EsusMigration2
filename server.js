@@ -308,10 +308,24 @@ app.get('/api/status', (req, res) => {
 
 // health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
+  res.json({ 
+    status: 'ok', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  });
+});
+
+// Endpoint de debug para verificar variáveis de ambiente
+app.get('/api/debug/env', (req, res) => {
+  res.json({
+    POSTGRES_HOST: process.env.POSTGRES_HOST,
+    POSTGRES_PORT: process.env.POSTGRES_PORT,
+    POSTGRES_DB: process.env.POSTGRES_DB,
+    POSTGRES_USER: process.env.POSTGRES_USER,
+    POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD ? '***DEFINIDA***' : 'UNDEFINED',
+    BASE_DIR: process.env.BASE_DIR,
+    envPath: path.join(process.env.BASE_DIR || __dirname, '.env'),
+    envExists: fs.existsSync(path.join(process.env.BASE_DIR || __dirname, '.env'))
   });
 });
 
@@ -712,6 +726,293 @@ const upload = multer({ dest: CSV_DIR });
 // Importar rotas de logs do PostgreSQL
 const postgresqlLogsRoutes = require('./backend/routes/postgresql-logs');
 app.use('/api/postgresql-logs', postgresqlLogsRoutes);
+
+// Endpoints para tabelas FAT
+app.get('/api/fat-tables/data', async (req, res) => {
+  try {
+    const { table, page = 1, limit = 50, search = '' } = req.query;
+    
+    logger.info(`🔍 Buscando dados da tabela: ${table} (página ${page})`);
+    
+    // Validar tabela
+    const allowedTables = ['tb_fat_cad_individual', 'tb_fat_cidadao', 'tb_fat_cidadao_pec', 'tb_cidadao', 'tl_cds_cad_individual', 'tb_cds_cad_individual'];
+    if (!allowedTables.includes(table)) {
+      return res.status(400).json({ error: 'Tabela não permitida' });
+    }
+
+    // Configurar conexão com banco
+    const client = new Client({
+      host: process.env.POSTGRES_HOST,
+      port: parseInt(process.env.POSTGRES_PORT),
+      database: process.env.POSTGRES_DB,
+      user: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+    });
+
+    await client.connect();
+
+    // Construir query baseada na tabela
+    let selectFields = '';
+    let searchCondition = '';
+    
+    switch (table) {
+      case 'tb_fat_cad_individual':
+        selectFields = `
+          co_seq_fat_cad_individual as id,
+          nu_cns as cns,
+          nu_cpf_cidadao as cpf,
+          dt_nascimento,
+          CASE co_dim_sexo WHEN 1 THEN 'Masculino' WHEN 2 THEN 'Feminino' ELSE 'N/I' END as sexo,
+          co_dim_unidade_saude as unidade_saude,
+          nu_uuid_ficha as uuid_ficha,
+          co_dim_tempo as data_cadastro
+        `;
+        if (search) {
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%'`;
+        }
+        break;
+        
+      case 'tb_fat_cidadao':
+        selectFields = `
+          co_seq_fat_cidadao as id,
+          nu_cns as cns,
+          'N/A' as nome,
+          'N/A' as dt_nascimento,
+          'N/I' as sexo,
+          co_dim_unidade_saude as unidade_saude,
+          nu_cpf_cidadao as cpf,
+          nu_uuid_ficha as uuid_origem
+        `;
+        if (search) {
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%'`;
+        }
+        break;
+        
+      case 'tb_fat_cidadao_pec':
+        selectFields = `
+          co_seq_fat_cidadao_pec as id,
+          nu_cns as cns,
+          COALESCE(no_cidadao, 'N/A') as nome,
+          co_dim_tempo_nascimento as data_nascimento,
+          CASE co_dim_sexo WHEN 0 THEN 'Masculino' WHEN 1 THEN 'Feminino' ELSE 'N/I' END as sexo,
+          co_dim_unidade_saude_vinc as unidade_saude,
+          nu_telefone_celular as telefone,
+          CASE st_faleceu WHEN 1 THEN 'Sim' WHEN 0 THEN 'Não' ELSE 'N/I' END as faleceu
+        `;
+        if (search) {
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR no_cidadao ILIKE '%${search}%'`;
+        }
+        break;
+        
+      case 'tb_cidadao':
+        selectFields = `
+          co_seq_cidadao as id,
+          nu_cns as cns,
+          no_cidadao as nome,
+          dt_nascimento as data_nascimento,
+          no_sexo as sexo,
+          'N/A' as unidade_saude,
+          nu_telefone_celular as telefone,
+          CASE co_nacionalidade WHEN 1 THEN 'Brasileira' ELSE 'Estrangeira' END as nacionalidade
+        `;
+        if (search) {
+          searchCondition = `WHERE no_cidadao ILIKE '%${search}%' OR nu_cns ILIKE '%${search}%'`;
+        }
+        break;
+        
+      case 'tl_cds_cad_individual':
+        selectFields = `
+          co_seq_cds_cad_individual as id,
+          co_cbo,
+          co_municipio,
+          co_pais,
+          co_cds_prof_cadastrante,
+          nu_micro_area,
+          dt_cad_individual as data_cadastro,
+          nu_cns_cidadao as cns,
+          no_cidadao as nome
+        `;
+        if (search) {
+          searchCondition = `WHERE no_cidadao ILIKE '%${search}%' OR nu_cns_cidadao ILIKE '%${search}%'`;
+        }
+        break;
+        
+      case 'tb_cds_cad_individual':
+        selectFields = `
+          co_seq_cds_cad_individual as id,
+          co_pais,
+          co_municipio,
+          nu_pis_pasep,
+          nu_cartao_sus_responsavel,
+          dt_nascimento_responsavel,
+          nu_micro_area,
+          dt_cad_individual as data_cadastro,
+          nu_cns_cidadao as cns,
+          no_cidadao as nome
+        `;
+        if (search) {
+          searchCondition = `WHERE no_cidadao ILIKE '%${search}%' OR nu_cns_cidadao ILIKE '%${search}%'`;
+        }
+        break;
+    }
+
+    // Query para contar total de registros
+    const countQuery = `SELECT COUNT(*) as total FROM ${table} ${searchCondition}`;
+    const countResult = await client.query(countQuery);
+    const totalRecords = parseInt(countResult.rows[0].total);
+
+    // Query para buscar todos os dados (sem paginação)
+    const dataQuery = `
+      SELECT ${selectFields}
+      FROM ${table}
+      ${searchCondition}
+      ORDER BY id DESC
+    `;
+    
+    logger.info(`📊 Query: ${dataQuery}`);
+    const dataResult = await client.query(dataQuery);
+    
+    await client.end();
+
+    logger.info(`✅ Dados obtidos: ${dataResult.rows.length} registros de ${totalRecords} total`);
+
+    res.json({
+      records: dataResult.rows,
+      total: totalRecords,
+      page: 1,
+      limit: totalRecords,
+      totalPages: 1
+    });
+
+  } catch (error) {
+    logger.error(`❌ Erro ao buscar dados da tabela FAT: ${error.message}`);
+    logger.error(`Stack trace: ${error.stack}`);
+    res.status(500).json({ error: 'Erro ao buscar dados da tabela', details: error.message });
+  }
+});
+
+// Endpoint para estatísticas das tabelas FAT
+app.get('/api/fat-tables/stats', async (req, res) => {
+  try {
+    const client = new Client({
+      host: process.env.POSTGRES_HOST,
+      port: parseInt(process.env.POSTGRES_PORT),
+      database: process.env.POSTGRES_DB,
+      user: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+    });
+
+    await client.connect();
+
+    // Consultar estatísticas reais de cada tabela
+    const tables = [
+      'tb_fat_cad_individual',
+      'tb_fat_cidadao', 
+      'tb_fat_cidadao_pec',
+      'tb_cidadao',
+      'tl_cds_cad_individual',
+      'tb_cds_cad_individual'
+    ];
+
+    const stats = {};
+
+    for (const table of tables) {
+      try {
+        // Verificar se a tabela existe
+        const tableExistsQuery = `
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = $1
+          );
+        `;
+        const tableExistsResult = await client.query(tableExistsQuery, [table]);
+        
+        if (tableExistsResult.rows[0].exists) {
+          // Contar registros
+          const countQuery = `SELECT COUNT(*) as total FROM ${table}`;
+          const countResult = await client.query(countQuery);
+          
+          stats[table] = {
+            total: parseInt(countResult.rows[0].total),
+            lastUpdate: new Date().toISOString(),
+            status: 'active'
+          };
+        } else {
+          stats[table] = {
+            total: 0,
+            lastUpdate: new Date().toISOString(),
+            status: 'not_found'
+          };
+        }
+      } catch (tableError) {
+        logger.error(`Erro ao consultar tabela ${table}:`, tableError);
+        stats[table] = {
+          total: 0,
+          lastUpdate: new Date().toISOString(),
+          status: 'error'
+        };
+      }
+    }
+
+    await client.end();
+    res.json(stats);
+  } catch (error) {
+    logger.error('Erro ao buscar estatísticas das tabelas FAT:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Endpoint para exportar dados das tabelas FAT
+app.get('/api/fat-tables/export', async (req, res) => {
+  try {
+    const { table } = req.query;
+    
+    const allowedTables = ['tb_fat_cad_individual', 'tb_fat_cidadao', 'tb_fat_cidadao_pec', 'tb_cidadao', 'tl_cds_cad_individual', 'tb_cds_cad_individual'];
+    if (!allowedTables.includes(table)) {
+      return res.status(400).json({ error: 'Tabela não permitida' });
+    }
+
+    const client = new Client({
+      host: process.env.POSTGRES_HOST,
+      port: parseInt(process.env.POSTGRES_PORT),
+      database: process.env.POSTGRES_DB,
+      user: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+    });
+
+    await client.connect();
+
+    // Query para exportar todos os dados
+    const result = await client.query(`SELECT * FROM ${table} ORDER BY 1 DESC`);
+    
+    await client.end();
+
+    // Converter para CSV
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Nenhum dado encontrado para exportar' });
+    }
+
+    const headers = Object.keys(result.rows[0]);
+    const csvContent = [
+      headers.join(','),
+      ...result.rows.map(row => 
+        headers.map(header => {
+          const value = row[header];
+          return value !== null && value !== undefined ? `"${value}"` : '';
+        }).join(',')
+      )
+    ].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${table}_export.csv"`);
+    res.send(csvContent);
+
+  } catch (error) {
+    logger.error(`Erro ao exportar dados da tabela FAT: ${error.message}`);
+    res.status(500).json({ error: 'Erro ao exportar dados' });
+  }
+});
 
 app.post('/api/csv/upload', upload.single('csvFile'), (req, res) => {
   if (!req.file) {
