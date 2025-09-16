@@ -1229,119 +1229,131 @@ app.get('/api/fat-tables/data', async (req, res) => {
     // Construir query baseada na tabela
     let selectFields = '';
     let searchCondition = '';
+    let fromClause = '';
     
     switch (table) {
       case 'tb_fat_cad_individual':
         selectFields = `
-          co_seq_fat_cad_individual as id,
-          nu_cns as cns,
-          nu_cpf_cidadao as cpf,
+          nu_cns,
+          nu_cpf_cidadao,
+          co_dim_sexo,
           dt_nascimento,
-          CASE co_dim_sexo WHEN 1 THEN 'Masculino' WHEN 2 THEN 'Feminino' ELSE 'N/I' END as sexo,
-          co_dim_unidade_saude as unidade_saude,
-          nu_uuid_ficha as uuid_ficha,
-          co_dim_tempo as data_cadastro
+          co_dim_raca_cor,
+          co_dim_nacionalidade,
+          co_dim_pais_nascimento,
+          nu_uuid_ficha,
+          nu_uuid_ficha_origem
         `;
         if (search) {
-          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%'`;
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%' OR nu_uuid_ficha ILIKE '%${search}%'`;
         }
         break;
         
       case 'tb_fat_cidadao':
         selectFields = `
           co_seq_fat_cidadao as id,
-          nu_cns as cns,
-          'N/A' as nome,
-          'N/A' as dt_nascimento,
-          'N/I' as sexo,
-          co_dim_unidade_saude as unidade_saude,
-          nu_cpf_cidadao as cpf,
-          nu_uuid_ficha as uuid_origem
+          nu_cns,
+          nu_uuid_ficha,
+          nu_uuid_ficha_origem
         `;
         if (search) {
-          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%'`;
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_uuid_ficha ILIKE '%${search}%' OR nu_uuid_ficha_origem ILIKE '%${search}%'`;
         }
         break;
         
       case 'tb_fat_cidadao_pec':
         selectFields = `
           co_seq_fat_cidadao_pec as id,
-          nu_cns as cns,
-          COALESCE(no_cidadao, 'N/A') as nome,
-          co_dim_tempo_nascimento as data_nascimento,
-          CASE co_dim_sexo WHEN 0 THEN 'Masculino' WHEN 1 THEN 'Feminino' ELSE 'N/I' END as sexo,
-          co_dim_unidade_saude_vinc as unidade_saude,
-          nu_telefone_celular as telefone,
-          CASE st_faleceu WHEN 1 THEN 'Sim' WHEN 0 THEN 'Não' ELSE 'N/I' END as faleceu
+          co_dim_unidade_saude_vinc,
+          co_dim_equipe_vinc,
+          nu_cns,
+          nu_cpf_cidadao,
+          no_cidadao,
+          co_dim_tempo_nascimento,
+          nu_telefone_celular,
+          nu_uuid_ficha
         `;
         if (search) {
-          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR no_cidadao ILIKE '%${search}%'`;
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%' OR no_cidadao ILIKE '%${search}%' OR nu_telefone_celular ILIKE '%${search}%' OR nu_uuid_ficha ILIKE '%${search}%'`;
         }
         break;
         
       case 'tb_cidadao':
         selectFields = `
           co_seq_cidadao as id,
-          nu_cns as cns,
-          no_cidadao as nome,
-          dt_nascimento as data_nascimento,
-          no_sexo as sexo,
-          'N/A' as unidade_saude,
-          nu_telefone_celular as telefone,
-          CASE co_nacionalidade WHEN 1 THEN 'Brasileira' ELSE 'Estrangeira' END as nacionalidade
+          c.nu_cns,
+          c.nu_cpf,
+          c.no_cidadao,
+          c.no_sexo,
+          c.dt_nascimento,
+          c.nu_telefone_celular,
+          c.co_raca_cor,
+          c.co_nacionalidade,
+          c.co_pais_nascimento,
+          c.co_unico_cidadao,
+          c.co_unico_ultima_ficha
         `;
+        fromClause = `FROM ${table} c`;
         if (search) {
-          searchCondition = `WHERE no_cidadao ILIKE '%${search}%' OR nu_cns ILIKE '%${search}%'`;
+          searchCondition = `WHERE c.nu_cns ILIKE '%${search}%' OR c.nu_cpf ILIKE '%${search}%' OR c.no_cidadao ILIKE '%${search}%' OR c.nu_telefone_celular ILIKE '%${search}%' OR c.co_unico_cidadao ILIKE '%${search}%' OR c.co_unico_ultima_ficha ILIKE '%${search}%'`;
         }
         break;
         
       case 'tl_cds_cad_individual':
         selectFields = `
           co_seq_cds_cad_individual as id,
-          co_cbo,
-          co_municipio,
-          co_pais,
-          co_cds_prof_cadastrante,
           nu_micro_area,
-          dt_cad_individual as data_cadastro,
-          nu_cns_cidadao as cns,
-          no_cidadao as nome
+          nu_cpf_cidadao,
+          no_cidadao,
+          dt_nascimento,
+          nu_celular_cidadao,
+          co_raca_cor,
+          co_nacionalidade,
+          co_unico_ficha_origem
         `;
         if (search) {
-          searchCondition = `WHERE no_cidadao ILIKE '%${search}%' OR nu_cns_cidadao ILIKE '%${search}%'`;
+          searchCondition = `WHERE nu_cpf_cidadao ILIKE '%${search}%' OR no_cidadao ILIKE '%${search}%' OR nu_celular_cidadao ILIKE '%${search}%' OR co_unico_ficha_origem ILIKE '%${search}%'`;
         }
         break;
         
       case 'tb_cds_cad_individual':
         selectFields = `
           co_seq_cds_cad_individual as id,
-          co_pais,
-          co_municipio,
-          nu_pis_pasep,
-          nu_cartao_sus_responsavel,
-          dt_nascimento_responsavel,
-          nu_micro_area,
-          dt_cad_individual as data_cadastro,
-          nu_cns_cidadao as cns,
-          no_cidadao as nome
+          c.nu_micro_area,
+          c.nu_cpf_cidadao,
+          c.no_cidadao,
+          s.no_identificador as no_sexo,
+          c.dt_nascimento,
+          c.nu_celular_cidadao,
+          c.co_raca_cor,
+          c.co_nacionalidade,
+          c.co_unico_ficha_origem
         `;
+        fromClause = `FROM ${table} c LEFT JOIN public.tb_sexo s ON c.co_sexo = s.co_sexo`;
         if (search) {
-          searchCondition = `WHERE no_cidadao ILIKE '%${search}%' OR nu_cns_cidadao ILIKE '%${search}%'`;
+          searchCondition = `WHERE c.nu_cpf_cidadao ILIKE '%${search}%' OR c.no_cidadao ILIKE '%${search}%' OR c.nu_celular_cidadao ILIKE '%${search}%' OR c.co_unico_ficha_origem ILIKE '%${search}%'`;
         }
         break;
     }
 
     // Query para contar total de registros
-    const countQuery = `SELECT COUNT(*) as total FROM ${table} ${searchCondition}`;
+    const countFromClause = fromClause || `FROM ${table}`;
+    const countQuery = `SELECT COUNT(*) as total ${countFromClause} ${searchCondition}`;
     const countResult = await client.query(countQuery);
     const totalRecords = parseInt(countResult.rows[0].total);
 
     // Query para buscar todos os dados (sem paginação)
+    let orderBy = 'id DESC';
+    if (table === 'tb_fat_cad_individual') {
+      orderBy = 'nu_uuid_ficha DESC';
+    }
+    
+    const dataFromClause = fromClause || `FROM ${table}`;
     const dataQuery = `
       SELECT ${selectFields}
-      FROM ${table}
+      ${dataFromClause}
       ${searchCondition}
-      ORDER BY id DESC
+      ORDER BY ${orderBy}
     `;
     
     logger.info(`📊 Query: ${dataQuery}`);

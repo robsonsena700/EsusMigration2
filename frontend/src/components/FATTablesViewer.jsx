@@ -256,15 +256,25 @@ const FATTablesViewer = () => {
       case 'tb_fat_cad_individual':
         return [...baseFields, 'UUID ficha', 'data cadastro']
       case 'tb_fat_cidadao':
-        return [...baseFields, 'CPF', 'UUID origem']
+        return ['CNS', 'UUID ficha', 'UUID ficha origem']
       case 'tb_fat_cidadao_pec':
-        return [...baseFields, 'CPF', 'tempo nascimento']
+        return ['Unidade saúde vinc', 'Equipe vinc', 'CNS', 'CPF', 'Nome cidadão', 'Tempo nascimento', 'Telefone celular', 'UUID ficha']
       case 'tb_cidadao':
-        return [...baseFields, 'CPF', 'telefone', 'nacionalidade']
-      case 'tl_cds_cad_individual':
-        return [...baseFields, 'UUID ficha', 'data cadastro']
+        return ['CNS', 'CPF', 'Nome cidadão', 'Sexo', 'Data nascimento', 'Telefone celular', 'Raça/cor', 'Nacionalidade', 'País nascimento', 'Único cidadão', 'Única ficha']
       case 'tb_cds_cad_individual':
-        return [...baseFields, 'UUID ficha', 'data cadastro']
+        return [
+          'Micro Área', 
+          'CPF Cidadão', 
+          'Nome Cidadão', 
+          'Sexo', 
+          'Data Nascimento', 
+          'Celular Cidadão', 
+          'Raça/Cor', 
+          'Nacionalidade', 
+          'Único Ficha Origem'
+        ]
+      case 'tl_cds_cad_individual':
+        return ['Micro área', 'CPF cidadão', 'Nome cidadão', 'Data nascimento', 'Celular cidadão', 'Raça/cor', 'Nacionalidade', 'Único ficha origem']
       default:
         return baseFields
     }
@@ -276,13 +286,48 @@ const FATTablesViewer = () => {
     
     switch (activeTable) {
       case 'tb_fat_cad_individual':
-        return [...commonHeaders, 'UUID Ficha', 'Data Cadastro']
+        return [
+          'CNS', 
+          'CPF', 
+          'Sexo', 
+          'Data Nascimento', 
+          'Raça/Cor', 
+          'Nacionalidade', 
+          'País Nascimento', 
+          'UUID Ficha', 
+          'UUID Ficha Origem'
+        ]
       case 'tb_fat_cidadao':
-        return [...commonHeaders, 'CPF', 'UUID Origem']
+        return [
+          'CNS', 
+          'UUID Ficha', 
+          'UUID Ficha Origem'
+        ]
       case 'tb_fat_cidadao_pec':
-        return [...commonHeaders, 'Tempo Nascimento', 'Data Atualização']
+        return [
+          'Unidade Saúde Vinc', 
+          'Equipe Vinc', 
+          'CNS', 
+          'CPF', 
+          'Nome Cidadão', 
+          'Tempo Nascimento', 
+          'Telefone Celular', 
+          'UUID Ficha'
+        ]
       case 'tb_cidadao':
-        return [...commonHeaders, 'Telefone', 'Nacionalidade']
+        return [
+          'CNS', 
+          'CPF', 
+          'Nome Cidadão', 
+          'Sexo', 
+          'Data Nascimento', 
+          'Telefone Celular', 
+          'Raça/Cor', 
+          'Nacionalidade', 
+          'País Nascimento', 
+          'Único Cidadão', 
+          'Única Ficha'
+        ]
       default:
         return commonHeaders
     }
@@ -292,34 +337,80 @@ const FATTablesViewer = () => {
   const renderTableRow = (record, index) => {
     return (
       <tr key={index} className="hover:bg-gray-50 border-b border-gray-200">
-        <td className="px-4 py-3 text-sm text-gray-900">{record.id || '-'}</td>
-        <td className="px-4 py-3 text-sm text-gray-900">{record.cns || '-'}</td>
-        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{record.nome || '-'}</td>
-        <td className="px-4 py-3 text-sm text-gray-900">{record.data_nascimento || '-'}</td>
-        <td className="px-4 py-3 text-sm text-gray-900">{record.sexo || '-'}</td>
-        <td className="px-4 py-3 text-sm text-gray-900">{record.unidade_saude || '-'}</td>
-        {activeTable === 'tb_fat_cad_individual' && (
+        {activeTable === 'tb_fat_cad_individual' ? (
           <>
-            <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">{record.uuid_ficha?.substring(0, 8) || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.data_cadastro || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cns || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cpf_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_dim_sexo || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.dt_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_dim_raca_cor || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_dim_nacionalidade || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_dim_pais_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs w-80 min-w-80 break-all">{record.nu_uuid_ficha || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs w-80 min-w-80 break-all">{record.nu_uuid_ficha_origem || '-'}</td>
           </>
-        )}
-        {activeTable === 'tb_fat_cidadao' && (
+        ) : activeTable === 'tb_fat_cidadao' ? (
           <>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.cpf || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">{record.uuid_origem?.substring(0, 8) || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cns || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs w-80 min-w-80 break-all">{record.nu_uuid_ficha || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs w-80 min-w-80 break-all">{record.nu_uuid_ficha_origem || '-'}</td>
           </>
-        )}
-        {activeTable === 'tb_fat_cidadao_pec' && (
+        ) : activeTable === 'tb_fat_cidadao_pec' ? (
           <>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.tempo_nascimento || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.data_atualizacao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_dim_unidade_saude_vinc || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_dim_equipe_vinc || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cns || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cpf_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{record.no_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_dim_tempo_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_telefone_celular || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs w-80 min-w-80 break-all">{record.nu_uuid_ficha || '-'}</td>
           </>
-        )}
-        {activeTable === 'tb_cidadao' && (
+        ) : activeTable === 'tb_cidadao' ? (
           <>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.telefone || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.nacionalidade || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cns || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cpf || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900 font-medium w-64 min-w-64">{record.no_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.no_sexo || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.dt_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_telefone_celular || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_raca_cor || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_nacionalidade || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_pais_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900 font-mono text-xs w-80 min-w-80 break-all">{record.co_unico_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900 font-mono text-xs w-80 min-w-80 break-all">{record.co_unico_ultima_ficha || '-'}</td>
+          </>
+        ) : activeTable === 'tb_cds_cad_individual' ? (
+          <>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_micro_area || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cpf_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{record.no_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.no_sexo || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.dt_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_celular_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_raca_cor || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_nacionalidade || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_unico_ficha_origem || '-'}</td>
+          </>
+        ) : activeTable === 'tl_cds_cad_individual' ? (
+          <>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_micro_area || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cpf_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{record.no_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.dt_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.nu_celular_cidadao || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_raca_cor || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_nacionalidade || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.co_unico_ficha_origem || '-'}</td>
+          </>
+        ) : (
+          <>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.id || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.cns || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900 font-medium">{record.nome || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.data_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.sexo || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.unidade_saude || '-'}</td>
           </>
         )}
       </tr>
@@ -501,14 +592,25 @@ const FATTablesViewer = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {renderTableHeaders().map((header, index) => (
-                  <th
-                    key={index}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    {header}
-                  </th>
-                ))}
+                {renderTableHeaders().map((header, index) => {
+                  // Definir larguras específicas para colunas UUID
+                  let headerClass = "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  
+                  if (activeTable === 'tb_fat_cad_individual' || activeTable === 'tb_fat_cidadao' || activeTable === 'tb_fat_cidadao_pec') {
+                    if (header === 'UUID Ficha' || header === 'UUID Ficha Origem') {
+                      headerClass += " w-80 min-w-80"
+                    }
+                  }
+                  
+                  return (
+                    <th
+                      key={index}
+                      className={headerClass}
+                    >
+                      {header}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
