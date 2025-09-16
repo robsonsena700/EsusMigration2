@@ -221,8 +221,8 @@ class FATTablesMigrator:
             co_unico_cidadao = self.generate_uuid_with_unidade(unidade_id)
             co_unico_ultima_ficha = co_unico_cidadao  # Mesmo valor conforme especificação
             
-            # Data atual no formato DDMMAAAA para dt_ultima_ficha
-            dt_ultima_ficha = datetime.now().strftime('%d%m%Y')
+            # Data atual no formato AAAAMMDD para dt_ultima_ficha
+            dt_ultima_ficha = datetime.now().strftime('%Y%m%d')
             
             # Inserir novo cidadão com todos os campos específicos
             insert_query = """
@@ -319,11 +319,9 @@ class FATTablesMigrator:
                 except:
                     pass
             
-            # Processar sexo (H = Masculino: 0, Feminino: 1)
-            co_dim_sexo = 0  # Default masculino
-            if row_data.get('sexo'):
-                if row_data['sexo'].upper() in ['FEMININO', 'F']:
-                    co_dim_sexo = 1
+            # Processar sexo (1=Masculino, 2=Feminino)
+            sexo_map = {'Masculino': 1, 'Feminino': 2, 'M': 1, 'F': 2}
+            co_dim_sexo = sexo_map.get(row_data.get('sexo'), 1)  # Default masculino
             
             # Processar telefone celular (somente números)
             nu_telefone_celular = None
@@ -389,12 +387,12 @@ class FATTablesMigrator:
             
             # Gerar UUIDs baseados na unidade de saúde
             nu_uuid_ficha = self.generate_uuid_with_unidade(unidade_id)
-            nu_uuid_origem = nu_uuid_ficha  # Mesmo valor conforme especificação
+            nu_uuid_ficha_origem = nu_uuid_ficha  # Mesmo valor conforme especificação
             nu_uuid_dado_transp = nu_uuid_ficha  # Mesmo valor conforme especificação
             
             # Processar dados adicionais
             sexo_map = {'Masculino': 1, 'Feminino': 2}
-            co_sexo = sexo_map.get(row_data.get('sexo'), 0)
+            co_sexo = sexo_map.get(row_data.get('sexo'), 1)  # Default masculino
             
             # Converter data de nascimento
             dt_nascimento = None
@@ -407,7 +405,7 @@ class FATTablesMigrator:
             # Inserir novo registro com todos os campos obrigatórios
             insert_query = """
                 INSERT INTO tb_fat_cidadao (
-                    co_seq_fat_cidadao, nu_uuid_ficha, nu_uuid_origem, st_recusa_cadastro,
+                    co_seq_fat_cidadao, nu_uuid_ficha, nu_uuid_ficha_origem, st_recusa_cadastro,
                     st_desconhece_mae, co_dim_profissional, co_dim_tipo_ficha, co_dim_municipio,
                     co_dim_unidade_saude, co_dim_equipe, co_dim_tempo, co_dim_validade,
                     co_dim_validade_recusa, co_dim_raca_cor, co_dim_nacionalidade, co_dim_pais_nascimento,
@@ -419,7 +417,7 @@ class FATTablesMigrator:
             self.cur.execute(insert_query, (
                 next_id,                    # co_seq_fat_cidadao
                 nu_uuid_ficha,             # nu_uuid_ficha
-                nu_uuid_origem,            # nu_uuid_origem
+                nu_uuid_ficha_origem,      # nu_uuid_ficha_origem
                 0,                         # st_recusa_cadastro
                 0,                         # st_desconhece_mae
                 2,                         # co_dim_profissional
@@ -476,12 +474,12 @@ class FATTablesMigrator:
             
             # Gerar UUIDs baseados na unidade de saúde
             nu_uuid_ficha = self.generate_uuid_with_unidade(unidade_id)
-            nu_uuid_origem = nu_uuid_ficha  # Mesmo valor conforme especificação
+            nu_uuid_ficha_origem = nu_uuid_ficha  # Mesmo valor conforme especificação
             nu_uuid_dado_transp = nu_uuid_ficha  # Mesmo valor conforme especificação
             
             # Processar dados adicionais
             sexo_map = {'Masculino': 1, 'Feminino': 2}
-            co_sexo = sexo_map.get(row_data.get('sexo'), 0)
+            co_sexo = sexo_map.get(row_data.get('sexo'), 1)  # Default masculino
             
             # Converter data de nascimento
             dt_nascimento = None
@@ -494,7 +492,7 @@ class FATTablesMigrator:
             # Inserir novo registro com todos os campos obrigatórios
             insert_query = """
                 INSERT INTO tb_fat_cad_individual (
-                    co_seq_fat_cad_individual, nu_uuid_ficha, nu_uuid_origem, st_recusa_cadastro,
+                    co_seq_fat_cad_individual, nu_uuid_ficha, nu_uuid_ficha_origem, st_recusa_cadastro,
                     st_desconhece_mae, co_dim_profissional, co_dim_tipo_ficha, co_dim_municipio,
                     co_dim_unidade_saude, co_dim_equipe, co_dim_tempo, co_dim_validade,
                     co_dim_validade_recusa, co_dim_raca_cor, co_dim_nacionalidade, co_dim_pais_nascimento,
@@ -507,7 +505,7 @@ class FATTablesMigrator:
             self.cur.execute(insert_query, (
                 next_id,                    # co_seq_fat_cad_individual
                 nu_uuid_ficha,             # nu_uuid_ficha
-                nu_uuid_origem,            # nu_uuid_origem
+                nu_uuid_ficha_origem,      # nu_uuid_ficha_origem
                 0,                         # st_recusa_cadastro
                 0,                         # st_desconhece_mae
                 2,                         # co_dim_profissional

@@ -57,18 +57,26 @@ function App() {
     if (!isLoading) {
       const interval = setInterval(async () => {
         try {
-          const response = await fetch('/api/health')
-          const backendStatus = response.ok ? 'online' : 'offline'
+          // Verificar backend
+          const backendResponse = await fetch('/api/health')
+          const backendStatus = backendResponse.ok ? 'online' : 'offline'
+          
+          // Verificar database
+          const dbResponse = await fetch('/api/database/status')
+          const dbStatus = dbResponse.ok ? 'online' : 'offline'
           
           setSystemStatus(prev => ({
             ...prev,
             backend: backendStatus,
+            database: dbStatus,
             lastCheck: new Date().toISOString()
           }))
         } catch (error) {
+          console.error('Erro na verificação periódica do status:', error)
           setSystemStatus(prev => ({
             ...prev,
             backend: 'offline',
+            database: 'offline',
             lastCheck: new Date().toISOString()
           }))
         }

@@ -1,0 +1,1015 @@
+{
+  "timestamp": "2025-09-16T00:40:47.402812",
+  "tabela": "public.tb_fat_cidadao",
+  "estrutura": {
+    "total_colunas": 46,
+    "colunas": [
+      {
+        "nome": "co_seq_fat_cidadao",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "NO",
+        "valor_padrao": null,
+        "posicao": 1
+      },
+      {
+        "nome": "nu_uuid_ficha",
+        "tipo": "character varying",
+        "tamanho_max": 92,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 2
+      },
+      {
+        "nome": "nu_uuid_ficha_origem",
+        "tipo": "character varying",
+        "tamanho_max": 96,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 3
+      },
+      {
+        "nome": "nu_cns",
+        "tipo": "character",
+        "tamanho_max": 15,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 4
+      },
+      {
+        "nome": "co_fat_cad_individual",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 5
+      },
+      {
+        "nome": "co_fat_familia",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 6
+      },
+      {
+        "nome": "co_dim_tempo",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 7
+      },
+      {
+        "nome": "co_fat_cidadao_raiz",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 8
+      },
+      {
+        "nome": "co_fat_cidadao_pai1",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 9
+      },
+      {
+        "nome": "co_fat_cidadao_pai2",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 10
+      },
+      {
+        "nome": "co_dim_tempo_validade",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 11
+      },
+      {
+        "nome": "co_dim_linha_tempo_validade",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 12
+      },
+      {
+        "nome": "co_fat_cidadao_raiz_equipe",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 13
+      },
+      {
+        "nome": "co_fat_cidadao_pai1_equipe",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 14
+      },
+      {
+        "nome": "co_fat_cidadao_pai2_equipe",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 15
+      },
+      {
+        "nome": "co_dim_tempo_valdd_equipe",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 16
+      },
+      {
+        "nome": "co_dim_linha_tempo_valdd_equp",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 17
+      },
+      {
+        "nome": "co_fat_cidadao_raiz_undde_sade",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 18
+      },
+      {
+        "nome": "co_fat_cidadao_pai1_undde_sade",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 19
+      },
+      {
+        "nome": "co_fat_cidadao_pai2_undde_sade",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 20
+      },
+      {
+        "nome": "co_dim_tempo_valdd_unidd_saud",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 21
+      },
+      {
+        "nome": "co_dim_lnh_vldd_unidd_sad",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 22
+      },
+      {
+        "nome": "co_fat_cidadao_raiz_municipio",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 23
+      },
+      {
+        "nome": "co_fat_cidadao_pai1_municipio",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 24
+      },
+      {
+        "nome": "co_fat_cidadao_pai2_municipio",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 25
+      },
+      {
+        "nome": "co_dim_tempo_valdd_municipio",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 26
+      },
+      {
+        "nome": "co_dim_linha_valdd_municipio",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 27
+      },
+      {
+        "nome": "co_dim_municipio",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 28
+      },
+      {
+        "nome": "co_dim_unidade_saude",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 29
+      },
+      {
+        "nome": "co_dim_equipe",
+        "tipo": "bigint",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 30
+      },
+      {
+        "nome": "st_responsavel_familiar",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 31
+      },
+      {
+        "nome": "st_mudou",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 32
+      },
+      {
+        "nome": "st_vivo",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 33
+      },
+      {
+        "nome": "st_ativo_territorio",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 34
+      },
+      {
+        "nome": "st_processo_linha_tempo",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 35
+      },
+      {
+        "nome": "st_processo_familia",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 36
+      },
+      {
+        "nome": "st_ficha_inativa",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 37
+      },
+      {
+        "nome": "nu_cpf_cidadao",
+        "tipo": "character varying",
+        "tamanho_max": 11,
+        "permite_null": "YES",
+        "valor_padrao": null,
+        "posicao": 38
+      },
+      {
+        "nome": "st_recusa_cadastro",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "0",
+        "posicao": 39
+      },
+      {
+        "nome": "co_dim_validade",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "1",
+        "posicao": 40
+      },
+      {
+        "nome": "st_desconhece_mae",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "0",
+        "posicao": 41
+      },
+      {
+        "nome": "co_dim_profissional",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "2",
+        "posicao": 42
+      },
+      {
+        "nome": "co_dim_tipo_ficha",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "2",
+        "posicao": 43
+      },
+      {
+        "nome": "co_dim_validade_recusa",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "30001231",
+        "posicao": 44
+      },
+      {
+        "nome": "co_dim_raca_cor",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "4",
+        "posicao": 45
+      },
+      {
+        "nome": "co_dim_nacionalidade",
+        "tipo": "integer",
+        "tamanho_max": null,
+        "permite_null": "YES",
+        "valor_padrao": "1",
+        "posicao": 46
+      }
+    ],
+    "constraints": [
+      {
+        "nome": "2200_94930_1_not_null",
+        "tipo": "CHECK",
+        "coluna": null,
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dimequipe_fatcddtrrtr",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_equipe",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dimmunicipio_fatcddtrrtr",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_municipio",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dimunidadesaude_fatcddtrrtr",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_unidade_saude",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcddalinhavaldd",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_linha_tempo_validade",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcddalnhvlddequp",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_linha_tempo_valdd_equp",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcddalnhvlddmncpo",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_linha_valdd_municipio",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcddavalidadeequp",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_tempo_valdd_equipe",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcddavlddmncpo",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_tempo_valdd_municipio",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcddavlddunddsaud",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_tempo_valdd_unidd_saud",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcidadao",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_tempo",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtempo_fatcidadao_validade",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_tempo_validade",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "fk_dmtmp_fatcddalnhvlddunddsad",
+        "tipo": "FOREIGN KEY",
+        "coluna": "co_dim_lnh_vldd_unidd_sad",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      },
+      {
+        "nome": "pk_fatcadastrocidadao",
+        "tipo": "PRIMARY KEY",
+        "coluna": "co_seq_fat_cidadao",
+        "deferrable": "NO",
+        "initially_deferred": "NO"
+      }
+    ],
+    "indices": [
+      {
+        "nome": "in_fatcidadao_fatcidadaopai1",
+        "definicao": "CREATE INDEX in_fatcidadao_fatcidadaopai1 ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai1)"
+      },
+      {
+        "nome": "in_fatcidadao_fatcidadaopai2",
+        "definicao": "CREATE INDEX in_fatcidadao_fatcidadaopai2 ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai2)"
+      },
+      {
+        "nome": "in_fatcidadao_ftciddpai1equipe",
+        "definicao": "CREATE INDEX in_fatcidadao_ftciddpai1equipe ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai1_equipe)"
+      },
+      {
+        "nome": "in_fatcidadao_ftciddpai1mncpo",
+        "definicao": "CREATE INDEX in_fatcidadao_ftciddpai1mncpo ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai1_municipio)"
+      },
+      {
+        "nome": "in_fatcidadao_ftciddpai1unddsd",
+        "definicao": "CREATE INDEX in_fatcidadao_ftciddpai1unddsd ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai1_undde_sade)"
+      },
+      {
+        "nome": "in_fatcidadao_ftciddpai2equipe",
+        "definicao": "CREATE INDEX in_fatcidadao_ftciddpai2equipe ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai2_equipe)"
+      },
+      {
+        "nome": "in_fatcidadao_ftciddpai2mncpo",
+        "definicao": "CREATE INDEX in_fatcidadao_ftciddpai2mncpo ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai2_municipio)"
+      },
+      {
+        "nome": "in_fatcidadao_ftciddpai2unddsd",
+        "definicao": "CREATE INDEX in_fatcidadao_ftciddpai2unddsd ON public.tb_fat_cidadao USING btree (co_fat_cidadao_pai2_undde_sade)"
+      },
+      {
+        "nome": "in_fatcidadao_nucns",
+        "definicao": "CREATE INDEX in_fatcidadao_nucns ON public.tb_fat_cidadao USING btree (nu_cns, co_dim_tempo, co_seq_fat_cidadao)"
+      },
+      {
+        "nome": "in_fatcidadao_nucnslotacao",
+        "definicao": "CREATE INDEX in_fatcidadao_nucnslotacao ON public.tb_fat_cidadao USING btree (nu_cns, co_dim_municipio, co_dim_unidade_saude, co_dim_equipe)"
+      },
+      {
+        "nome": "in_fatcidadao_nucpf",
+        "definicao": "CREATE INDEX in_fatcidadao_nucpf ON public.tb_fat_cidadao USING btree (nu_cpf_cidadao, co_dim_tempo, co_seq_fat_cidadao)"
+      },
+      {
+        "nome": "in_fatcidadao_nucpflotacao",
+        "definicao": "CREATE INDEX in_fatcidadao_nucpflotacao ON public.tb_fat_cidadao USING btree (nu_cpf_cidadao, co_dim_municipio, co_dim_unidade_saude, co_dim_equipe)"
+      },
+      {
+        "nome": "in_fatcidadao_nuuuidfichorigem",
+        "definicao": "CREATE INDEX in_fatcidadao_nuuuidfichorigem ON public.tb_fat_cidadao USING btree (nu_uuid_ficha_origem, co_dim_tempo, co_seq_fat_cidadao)"
+      },
+      {
+        "nome": "in_fatcidadao_periodo",
+        "definicao": "CREATE INDEX in_fatcidadao_periodo ON public.tb_fat_cidadao USING btree (co_dim_tempo_validade, co_dim_tempo)"
+      },
+      {
+        "nome": "in_fatcidadao_periodo_equipe",
+        "definicao": "CREATE INDEX in_fatcidadao_periodo_equipe ON public.tb_fat_cidadao USING btree (co_dim_tempo_valdd_equipe, co_dim_tempo)"
+      },
+      {
+        "nome": "in_fatcidadao_periodo_municpo",
+        "definicao": "CREATE INDEX in_fatcidadao_periodo_municpo ON public.tb_fat_cidadao USING btree (co_dim_tempo_valdd_municipio, co_dim_tempo)"
+      },
+      {
+        "nome": "in_fatcidadao_pervalequipe",
+        "definicao": "CREATE INDEX in_fatcidadao_pervalequipe ON public.tb_fat_cidadao USING btree (co_fat_cad_individual, co_dim_tempo_valdd_equipe, co_dim_tempo DESC)"
+      },
+      {
+        "nome": "in_fatcidadao_pervalmunicipio",
+        "definicao": "CREATE INDEX in_fatcidadao_pervalmunicipio ON public.tb_fat_cidadao USING btree (co_fat_cad_individual, co_dim_tempo_valdd_municipio, co_dim_tempo DESC)"
+      },
+      {
+        "nome": "in_fatcidadao_prvvaldcidraiz",
+        "definicao": "CREATE INDEX in_fatcidadao_prvvaldcidraiz ON public.tb_fat_cidadao USING btree (co_fat_cidadao_raiz, co_dim_tempo_validade, co_dim_tempo DESC)"
+      },
+      {
+        "nome": "in_fatcidadao_prvvalduniddsaud",
+        "definicao": "CREATE INDEX in_fatcidadao_prvvalduniddsaud ON public.tb_fat_cidadao USING btree (co_fat_cad_individual, co_dim_tempo_valdd_unidd_saud, co_dim_tempo DESC)"
+      },
+      {
+        "nome": "in_fatcidadao_stprcssolnhtempo",
+        "definicao": "CREATE INDEX in_fatcidadao_stprcssolnhtempo ON public.tb_fat_cidadao USING btree (st_processo_linha_tempo, co_dim_tempo, co_seq_fat_cidadao)"
+      },
+      {
+        "nome": "in_fatcidadao_stprocfam_coseq",
+        "definicao": "CREATE INDEX in_fatcidadao_stprocfam_coseq ON public.tb_fat_cidadao USING btree (st_processo_familia, co_seq_fat_cidadao)"
+      },
+      {
+        "nome": "in_fatciddo_periodo_undde_sade",
+        "definicao": "CREATE INDEX in_fatciddo_periodo_undde_sade ON public.tb_fat_cidadao USING btree (co_dim_tempo_valdd_unidd_saud, co_dim_tempo)"
+      },
+      {
+        "nome": "in_ftcidadao_coftcidrzcosqftcd",
+        "definicao": "CREATE INDEX in_ftcidadao_coftcidrzcosqftcd ON public.tb_fat_cidadao USING btree (co_fat_cidadao_raiz, co_seq_fat_cidadao)"
+      },
+      {
+        "nome": "in_ftcidadao_sqfatcidadaonucns",
+        "definicao": "CREATE INDEX in_ftcidadao_sqfatcidadaonucns ON public.tb_fat_cidadao USING btree (co_seq_fat_cidadao, nu_cns)"
+      },
+      {
+        "nome": "in_ftcidadao_sqfatcidadaonucpf",
+        "definicao": "CREATE INDEX in_ftcidadao_sqfatcidadaonucpf ON public.tb_fat_cidadao USING btree (nu_cpf_cidadao, co_seq_fat_cidadao)"
+      },
+      {
+        "nome": "pk_fatcadastrocidadao",
+        "definicao": "CREATE UNIQUE INDEX pk_fatcadastrocidadao ON public.tb_fat_cidadao USING btree (co_seq_fat_cidadao)"
+      }
+    ]
+  },
+  "dados": {
+    "total_registros": 1,
+    "valores_nulos": [
+      {
+        "coluna": "co_seq_fat_cidadao",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "nu_uuid_ficha",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "nu_uuid_ficha_origem",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "nu_cns",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cad_individual",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_familia",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_dim_tempo",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_raiz",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai1",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai2",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_dim_tempo_validade",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_linha_tempo_validade",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_raiz_equipe",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai1_equipe",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai2_equipe",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_dim_tempo_valdd_equipe",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_linha_tempo_valdd_equp",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_raiz_undde_sade",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai1_undde_sade",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai2_undde_sade",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_dim_tempo_valdd_unidd_saud",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_lnh_vldd_unidd_sad",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_raiz_municipio",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai1_municipio",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_fat_cidadao_pai2_municipio",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "co_dim_tempo_valdd_municipio",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_linha_valdd_municipio",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_municipio",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_unidade_saude",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_equipe",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_responsavel_familiar",
+        "total": 1,
+        "nao_nulos": 0,
+        "nulos": 1,
+        "percentual_nulos": 100.0
+      },
+      {
+        "coluna": "st_mudou",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_vivo",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_ativo_territorio",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_processo_linha_tempo",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_processo_familia",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_ficha_inativa",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "nu_cpf_cidadao",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_recusa_cadastro",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_validade",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "st_desconhece_mae",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_profissional",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_tipo_ficha",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_validade_recusa",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_raca_cor",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      },
+      {
+        "coluna": "co_dim_nacionalidade",
+        "total": 1,
+        "nao_nulos": 1,
+        "nulos": 0,
+        "percentual_nulos": 0.0
+      }
+    ],
+    "valores_unicos": [
+      {
+        "coluna": "co_seq_fat_cidadao",
+        "total": 1,
+        "unicos": 1,
+        "duplicados": 0
+      },
+      {
+        "coluna": "nu_cpf_cidadao",
+        "total": 1,
+        "unicos": 1,
+        "duplicados": 0
+      },
+      {
+        "coluna": "nu_cns",
+        "total": 1,
+        "unicos": 1,
+        "duplicados": 0
+      },
+      {
+        "coluna": "nu_uuid_ficha",
+        "total": 1,
+        "unicos": 1,
+        "duplicados": 0
+      }
+    ],
+    "amostra": [
+      {
+        "co_seq_fat_cidadao": "1",
+        "nu_uuid_ficha": "9017364-1101c288-3cc2-4c2b-a4ca-cfba0993d6d7",
+        "nu_uuid_ficha_origem": "9017364-1101c288-3cc2-4c2b-a4ca-cfba0993d6d7",
+        "nu_cns": "711918984940005",
+        "co_fat_cad_individual": "1",
+        "co_fat_familia": "NULL",
+        "co_dim_tempo": "20250915",
+        "co_fat_cidadao_raiz": "1",
+        "co_fat_cidadao_pai1": "NULL",
+        "co_fat_cidadao_pai2": "NULL",
+        "co_dim_tempo_validade": "30001231",
+        "co_dim_linha_tempo_validade": "30001231",
+        "co_fat_cidadao_raiz_equipe": "1",
+        "co_fat_cidadao_pai1_equipe": "NULL",
+        "co_fat_cidadao_pai2_equipe": "NULL",
+        "co_dim_tempo_valdd_equipe": "30001231",
+        "co_dim_linha_tempo_valdd_equp": "30001231",
+        "co_fat_cidadao_raiz_undde_sade": "1",
+        "co_fat_cidadao_pai1_undde_sade": "NULL",
+        "co_fat_cidadao_pai2_undde_sade": "NULL",
+        "co_dim_tempo_valdd_unidd_saud": "30001231",
+        "co_dim_lnh_vldd_unidd_sad": "30001231",
+        "co_fat_cidadao_raiz_municipio": "1",
+        "co_fat_cidadao_pai1_municipio": "NULL",
+        "co_fat_cidadao_pai2_municipio": "NULL",
+        "co_dim_tempo_valdd_municipio": "30001231",
+        "co_dim_linha_valdd_municipio": "30001231",
+        "co_dim_municipio": "2",
+        "co_dim_unidade_saude": "2",
+        "co_dim_equipe": "2",
+        "st_responsavel_familiar": "NULL",
+        "st_mudou": "0",
+        "st_vivo": "1",
+        "st_ativo_territorio": "1",
+        "st_processo_linha_tempo": "0",
+        "st_processo_familia": "0",
+        "st_ficha_inativa": "0",
+        "nu_cpf_cidadao": "0          ",
+        "st_recusa_cadastro": "0",
+        "co_dim_validade": "1",
+        "st_desconhece_mae": "0",
+        "co_dim_profissional": "2",
+        "co_dim_tipo_ficha": "2",
+        "co_dim_validade_recusa": "30001231",
+        "co_dim_raca_cor": "4",
+        "co_dim_nacionalidade": "1"
+      }
+    ],
+    "colunas_ausentes": [
+      "co_dim_pais_nascimento",
+      "nu_uuid_dado_transp",
+      "co_dim_sexo",
+      "dt_nascimento"
+    ]
+  },
+  "problemas": [
+    "Coluna co_fat_familia tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai1 tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai2 tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai1_equipe tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai2_equipe tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai1_undde_sade tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai2_undde_sade tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai1_municipio tem 100.00% de valores nulos",
+    "Coluna co_fat_cidadao_pai2_municipio tem 100.00% de valores nulos",
+    "Coluna st_responsavel_familiar tem 100.00% de valores nulos",
+    "Coluna ausente: co_dim_pais_nascimento",
+    "Coluna ausente: nu_uuid_dado_transp",
+    "Coluna ausente: co_dim_sexo",
+    "Coluna ausente: dt_nascimento"
+  ],
+  "recomendacoes": [
+    "Adicionar colunas ausentes referenciadas no código"
+  ]
+}

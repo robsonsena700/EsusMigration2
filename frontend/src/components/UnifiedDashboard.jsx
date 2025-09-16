@@ -51,7 +51,15 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
     POSTGRES_PORT: '5432',
     TABLE_NAME: 'public.tl_cds_cad_individual'
   })
+  const [selectedTables, setSelectedTables] = useState([])
   const [availableTables, setAvailableTables] = useState([])
+  const [sqlGenerationProgress, setSqlGenerationProgress] = useState({
+    isGenerating: false,
+    current: 0,
+    total: 0,
+    currentTable: '',
+    results: []
+  })
   const [selectedFile, setSelectedFile] = useState('')
   const [uploadedFile, setUploadedFile] = useState(null)
   const [configLoading, setConfigLoading] = useState(false)
@@ -416,6 +424,136 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
     toast.success('Seleção limpa')
   }
 
+  // Função para gerar arquivos SQL para múltiplas tabelas
+  const generateMultipleSqlFiles = async () => {
+    // Validação 1: Verificar se pelo menos uma tabela está selecionada
+    if (selectedTables.length === 0) {
+      console.log('❌ Erro de validação: Nenhuma tabela selecionada para migração')
+      toast.error('Selecione pelo menos uma tabela para migração')
+      return
+    }
+
+    // Validação 2: Verificar status do backend
+    if (systemStatus.backend !== 'online') {
+      console.log('❌ Erro de validação: Backend não está online', { status: systemStatus.backend })
+      toast.error('Backend não está online. Verifique a conexão com o servidor.')
+      return
+    }
+
+    // Validação 3: Verificar status do banco de dados
+    if (systemStatus.database !== 'online') {
+      console.log('❌ Erro de validação: Banco de dados não está online', { status: systemStatus.database })
+      toast.error('Banco de dados não está online. Verifique a conexão com o PostgreSQL.')
+      return
+    }
+
+    // Validação 4: Verificar se há arquivos CSV disponíveis
+    if (csvFiles.length === 0) {
+      console.log('❌ Erro de validação: Nenhum arquivo CSV disponível')
+      toast.error('Nenhum arquivo CSV disponível')
+      return
+    }
+
+    // Validação 5: Verificar se pelo menos um arquivo CSV está selecionado
+    if (selectedFiles.length === 0) {
+      console.log('❌ Erro de validação: Nenhum arquivo CSV selecionado')
+      toast.error('Selecione pelo menos um arquivo CSV para processar')
+      return
+    }
+
+    console.log('✅ Todas as validações passaram. Iniciando geração de SQL...', {
+      tabelasSelecionadas: selectedTables.length,
+      arquivosCSV: csvFiles.length,
+      arquivosSelecionados: selectedFiles.length,
+      statusBackend: systemStatus.backend,
+      statusBanco: systemStatus.database
+    })
+
+    // DEBUG: Log detalhado dos dados que serão enviados
+    console.log('🔍 DEBUG - Dados que serão enviados:', {
+      selectedTables: selectedTables,
+      csvFiles: selectedFiles,
+      payload: {
+        selectedTables: selectedTables,
+        csvFiles: selectedFiles
+      }
+    })
+
+    try {
+      setSqlGenerationProgress({
+        isGenerating: true,
+        current: 0,
+        total: selectedTables.length,
+        currentTable: selectedTables[0],
+        results: []
+      })
+
+      toast.success(`Iniciando geração de SQL para ${selectedTables.length} tabela(s)`)
+
+      // Iniciar polling do status
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await fetch('/api/migration/sql-generation-status')
+          if (statusResponse.ok) {
+            const status = await statusResponse.json()
+            setSqlGenerationProgress(prev => ({
+              ...prev,
+              current: status.current,
+              currentTable: status.currentTable,
+              results: status.results
+            }))
+            
+            // Parar polling se a geração terminou
+            if (!status.isGenerating) {
+              clearInterval(pollInterval)
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao obter status:', error)
+        }
+      }, 500) // Poll a cada 500ms
+
+      const response = await fetch('/api/migration/generate-multiple-sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          selectedTables: selectedTables,
+          csvFiles: selectedFiles
+        }),
+      })
+
+      const result = await response.json()
+      clearInterval(pollInterval) // Parar polling
+
+      if (response.ok) {
+        setSqlGenerationProgress(prev => ({
+          ...prev,
+          isGenerating: false,
+          current: prev.total,
+          results: result.results
+        }))
+
+        toast.success(`Geração concluída! ${result.totalGenerated} arquivo(s) SQL gerado(s) para ${selectedTables.length} tabela(s) e ${selectedFiles.length} CSV(s)`)
+        
+        if (result.errors && result.errors.length > 0) {
+          console.warn('Erros durante a geração:', result.errors)
+          toast.error(`${result.totalErrors} erro(s) encontrado(s). Verifique o console.`)
+        }
+      } else {
+        throw new Error(result.error || 'Erro ao gerar arquivos SQL')
+      }
+    } catch (error) {
+      console.error('Erro ao gerar arquivos SQL:', error)
+      toast.error('Erro ao gerar arquivos SQL: ' + error.message)
+      setSqlGenerationProgress(prev => ({
+        ...prev,
+        isGenerating: false
+      }))
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -473,7 +611,7 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
             >
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4" />
-                Tabelas FAT
+                Analisar
               </div>
             </button>
             <button
@@ -634,93 +772,7 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
             </div>
           </div>
 
-          {/* Lista de Arquivos CSV */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Arquivos CSV</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={processCsvFiles}
-                    disabled={selectedFiles.length === 0 || migrationStatus === 'running'}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Play className="w-4 h-4" />
-                    Gerar
-                  </button>
-                  {csvFiles.length > 0 && (
-                    <button
-                      onClick={selectedFiles.length === csvFiles.length ? clearSelection : selectAllFiles}
-                      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      {selectedFiles.length === csvFiles.length ? 'Limpar Seleção' : 'Selecionar Todos'}
-                    </button>
-                  )}
-                  <button
-                    onClick={fetchCsvFiles}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Atualizar
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              {csvFiles.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Nenhum arquivo CSV encontrado</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Faça upload de arquivos na aba Configurações
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {csvFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedFiles.includes(file.name)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedFiles([...selectedFiles, file.name])
-                            } else {
-                              setSelectedFiles(selectedFiles.filter(f => f !== file.name))
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                        />
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        <div>
-                          <p className="font-medium text-gray-900">{file.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {file.size} • {file.modified}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-green-600 transition-colors">
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-red-600 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+
           </div>
         )}
 
@@ -731,205 +783,396 @@ const UnifiedDashboard = ({ systemStatus, onStatusUpdate }) => {
 
         {/* Tab: Configurações */}
         {activeTab === 'config' && (
-          <div className="space-y-6">
-          {/* Configurações de Conexão */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Configuração do Banco de Dados</h2>
-                <div className="flex items-center gap-2">
+          <div className="space-y-4">
+            {/* 1. Configuração do Banco de Dados */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Configuração do Banco de Dados</h2>
                   <button
                     onClick={() => setShowConfigModal(true)}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
                   >
                     <Save className="w-4 h-4" />
                     Salvar Config
                   </button>
                 </div>
               </div>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nome do Banco
-                  </label>
-                  <input
-                    type="text"
-                    value={config.POSTGRES_DB}
-                    onChange={(e) => setConfig({...config, POSTGRES_DB: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="nome_do_banco"
-                  />
+              <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome do Banco
+                    </label>
+                    <input
+                      type="text"
+                      value={config.POSTGRES_DB}
+                      onChange={(e) => setConfig({...config, POSTGRES_DB: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="nome_do_banco"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Usuário
+                    </label>
+                    <input
+                      type="text"
+                      value={config.POSTGRES_USER}
+                      onChange={(e) => setConfig({...config, POSTGRES_USER: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="usuario"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Senha
+                    </label>
+                    <input
+                      type="password"
+                      value={config.POSTGRES_PASSWORD}
+                      onChange={(e) => setConfig({...config, POSTGRES_PASSWORD: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="senha"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Usuário
-                  </label>
-                  <input
-                    type="text"
-                    value={config.POSTGRES_USER}
-                    onChange={(e) => setConfig({...config, POSTGRES_USER: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="usuario"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Senha
-                  </label>
-                  <input
-                    type="password"
-                    value={config.POSTGRES_PASSWORD}
-                    onChange={(e) => setConfig({...config, POSTGRES_PASSWORD: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="senha"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Host
-                  </label>
-                  <input
-                    type="text"
-                    value={config.POSTGRES_HOST}
-                    onChange={(e) => setConfig({...config, POSTGRES_HOST: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="localhost"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Porta
-                  </label>
-                  <input
-                    type="text"
-                    value={config.POSTGRES_PORT}
-                    onChange={(e) => setConfig({...config, POSTGRES_PORT: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="5432"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tabela de Destino
-                  </label>
-                  <select
-                     value={config.TABLE_NAME}
-                     onChange={(e) => updateSelectedTable(e.target.value)}
-                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                     disabled={configLoading}
-                   >
-                     <option value="">Selecione uma tabela...</option>
-                     {availableTables.map((table) => (
-                       <option key={table.name} value={table.name}>
-                         {table.displayName}
-                       </option>
-                     ))}
-                   </select>
-                   {config.TABLE_NAME && (
-                     <p className="text-sm text-gray-500 mt-1">
-                       {availableTables.find(t => t.name === config.TABLE_NAME)?.description || config.TABLE_NAME}
-                     </p>
-                   )}
-                </div>
-              </div>
-              
-              {message && (
-                <div className={`mt-4 p-4 rounded-md ${
-                  messageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                }`}>
-                  {message}
-                </div>
-              )}
-              
-              <div className="flex gap-4 mt-6">
-                <button
-                  onClick={testConnection}
-                  disabled={configLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {configLoading ? (
-                    <LoadingSpinner size="small" />
-                  ) : (
-                    <TestTube className="w-4 h-4" />
-                  )}
-                  Testar Conexão
-                </button>
-                <button
-                  onClick={saveConfig}
-                  disabled={configLoading}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {configLoading ? (
-                    <LoadingSpinner size="small" />
-                  ) : (
-                    <Save className="w-4 h-4" />
-                  )}
-                  Salvar
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Upload de Arquivos */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Upload de Arquivos CSV</h2>
-            </div>
-            <div className="p-6">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors">
-                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2">Arraste um arquivo CSV aqui ou clique para selecionar</p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label
-                  htmlFor="file-upload"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer transition-colors"
-                >
-                  <Upload className="w-4 h-4" />
-                  Selecionar Arquivo
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Configurações Salvas */}
-          {savedConfigs.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Configurações Salvas</h2>
-              </div>
-              <div className="p-6">
-                <div className="space-y-3">
-                  {savedConfigs.map((savedConfig) => (
-                    <div
-                      key={savedConfig.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900">{savedConfig.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {savedConfig.config.POSTGRES_HOST}:{savedConfig.config.POSTGRES_PORT}/{savedConfig.config.POSTGRES_DB}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => loadNamedConfig(savedConfig.id)}
-                        className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                {/* Seletor de Tabelas */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tabelas para Migração
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {availableTables.map((table) => (
+                      <div
+                        key={table.name}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          selectedTables.includes(table.name)
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => {
+                          setSelectedTables(prev => 
+                            prev.includes(table.name)
+                              ? prev.filter(t => t !== table.name)
+                              : [...prev, table.name]
+                          )
+                        }}
                       >
-                        Carregar
-                      </button>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {table.displayName}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {table.category}
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={selectedTables.includes(table.name)}
+                            onChange={() => {}}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedTables.length > 0 && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                      <p className="text-sm text-blue-700">
+                        {selectedTables.length} tabela(s) selecionada(s) para migração
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={generateMultipleSqlFiles}
+                          disabled={
+                            selectedTables.length === 0 || 
+                            csvFiles.length === 0 || 
+                            migrationStatus === 'running' || 
+                            sqlGenerationProgress.isGenerating ||
+                            systemStatus.backend !== 'online' ||
+                            systemStatus.database !== 'online'
+                          }
+                          className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          <FileText className="w-4 h-4" />
+                          {sqlGenerationProgress.isGenerating ? 'Gerando...' : 'Gerar Arquivos SQL'}
+                        </button>
+                        <button
+                          onClick={() => setSelectedTables([])}
+                          className="px-4 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600 flex items-center gap-2"
+                        >
+                          <X className="w-4 h-4" />
+                          Limpar Seleção
+                        </button>
+                      </div>
+
+                      {/* Feedback de Condições para Geração */}
+                      {(selectedTables.length === 0 || 
+                        csvFiles.length === 0 || 
+                        systemStatus.backend !== 'online' || 
+                        systemStatus.database !== 'online') && (
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                          <h4 className="text-sm font-medium text-yellow-800 mb-2">
+                            Condições necessárias para gerar arquivos SQL:
+                          </h4>
+                          <ul className="text-xs text-yellow-700 space-y-1">
+                            <li className={`flex items-center gap-2 ${selectedTables.length > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {selectedTables.length > 0 ? '✅' : '❌'} 
+                              Pelo menos 1 tabela selecionada ({selectedTables.length} selecionada{selectedTables.length !== 1 ? 's' : ''})
+                            </li>
+                            <li className={`flex items-center gap-2 ${csvFiles.length > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {csvFiles.length > 0 ? '✅' : '❌'} 
+                              Arquivos CSV disponíveis ({csvFiles.length} arquivo{csvFiles.length !== 1 ? 's' : ''})
+                            </li>
+                            <li className={`flex items-center gap-2 ${systemStatus.backend === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                              {systemStatus.backend === 'online' ? '✅' : '❌'} 
+                              Backend online (Status: {systemStatus.backend})
+                            </li>
+                            <li className={`flex items-center gap-2 ${systemStatus.database === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                              {systemStatus.database === 'online' ? '✅' : '❌'} 
+                              Banco de dados online (Status: {systemStatus.database})
+                            </li>
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Barra de Progresso da Geração de SQL */}
+                      {sqlGenerationProgress.isGenerating && (
+                        <div className="mt-4 p-3 bg-green-50 rounded-md border border-green-200">
+                          <div className="flex justify-between text-sm text-green-700 mb-2">
+                            <span>Gerando arquivos SQL...</span>
+                            <span>
+                              {sqlGenerationProgress.current} de {sqlGenerationProgress.total} tabelas
+                            </span>
+                          </div>
+                          <div className="w-full bg-green-200 rounded-full h-2">
+                            <div 
+                              className="h-2 bg-green-500 rounded-full transition-all duration-300"
+                              style={{ 
+                                width: `${sqlGenerationProgress.total > 0 
+                                  ? (sqlGenerationProgress.current / sqlGenerationProgress.total) * 100 
+                                  : 0}%` 
+                              }}
+                            ></div>
+                          </div>
+                          {sqlGenerationProgress.currentTable && (
+                            <p className="text-xs text-green-600 mt-2">
+                              Processando: {sqlGenerationProgress.currentTable}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Resultados da Geração */}
+                      {sqlGenerationProgress.results.length > 0 && (
+                        <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+                          <h4 className="text-sm font-medium text-gray-900 mb-2">
+                            Arquivos SQL Gerados ({sqlGenerationProgress.results.length})
+                          </h4>
+                          <div className="text-xs text-gray-600 mb-2">
+                            {selectedTables.length} tabela(s) × {selectedFiles.length} arquivo(s) CSV = {sqlGenerationProgress.results.length} arquivo(s) SQL
+                          </div>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {sqlGenerationProgress.results.map((result, index) => (
+                              <div key={index} className="text-xs text-gray-600 flex justify-between">
+                                <span>{result.sqlFile}</span>
+                                <span className="text-gray-400">
+                                  {(result.fileSize / 1024).toFixed(1)} KB
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )}
+                </div>
+                
+                {message && (
+                  <div className={`mt-3 p-3 rounded-md text-sm ${
+                    messageType === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                  }`}>
+                    {message}
+                  </div>
+                )}
+                
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={testConnection}
+                    disabled={configLoading}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    {configLoading ? (
+                      <LoadingSpinner size="small" />
+                    ) : (
+                      <TestTube className="w-4 h-4" />
+                    )}
+                    Testar Conexão
+                  </button>
+                  <button
+                    onClick={saveConfig}
+                    disabled={configLoading}
+                    className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                  >
+                    {configLoading ? (
+                      <LoadingSpinner size="small" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    Salvar
+                  </button>
                 </div>
               </div>
             </div>
-          )}
+
+            {/* 2. Configurações Salvas */}
+            {savedConfigs.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Configurações Salvas</h2>
+                </div>
+                <div className="p-4">
+                  <div className="space-y-2">
+                    {savedConfigs.map((savedConfig) => (
+                      <div
+                        key={savedConfig.id}
+                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{savedConfig.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {savedConfig.config.POSTGRES_HOST}:{savedConfig.config.POSTGRES_PORT}/{savedConfig.config.POSTGRES_DB}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => loadNamedConfig(savedConfig.id)}
+                          className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                        >
+                          Carregar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Upload de Arquivos CSV */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Upload de Arquivos CSV</h2>
+              </div>
+              <div className="p-4">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-600 mb-2 text-sm">Arraste um arquivo CSV aqui ou clique para selecionar</p>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer transition-colors text-sm"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Selecionar Arquivo
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Arquivos CSV */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Arquivos CSV</h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={processCsvFiles}
+                      disabled={selectedFiles.length === 0 || migrationStatus === 'running'}
+                      className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      <Play className="w-4 h-4" />
+                      Gerar
+                    </button>
+                    {csvFiles.length > 0 && (
+                      <button
+                        onClick={selectedFiles.length === csvFiles.length ? clearSelection : selectAllFiles}
+                        className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        {selectedFiles.length === csvFiles.length ? 'Limpar' : 'Todos'}
+                      </button>
+                    )}
+                    <button
+                      onClick={fetchCsvFiles}
+                      className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4">
+                {csvFiles.length === 0 ? (
+                  <div className="text-center py-6">
+                    <FileText className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">Nenhum arquivo CSV encontrado</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Faça upload de arquivos acima
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {csvFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedFiles.includes(file.name)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedFiles([...selectedFiles, file.name])
+                              } else {
+                                setSelectedFiles(selectedFiles.filter(f => f !== file.name))
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                          />
+                          <FileText className="w-4 h-4 text-blue-600" />
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">{file.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {file.size} • {file.modified}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button className="p-1.5 text-gray-400 hover:text-green-600 transition-colors">
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button className="p-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

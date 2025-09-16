@@ -10,6 +10,7 @@ import json
 import argparse
 import sys
 import uuid
+import re
 
 # ======================
 # Configurações principais (podem vir do .env)
@@ -179,7 +180,74 @@ def validate_name(name):
     
     return clean_name
 
+def get_table_columns_static(table_name):
+    """Retorna colunas das tabelas usando mapeamento estático (para modo --no-db)"""
+    table_columns_map = {
+        'public.tb_cds_cad_individual': [
+            'co_seq_cds_cad_individual', 'nu_cns_cidadao', 'nu_micro_area', 'nu_cpf_cidadao',
+            'nu_cpf_responsavel', 'dt_cad_individual', 'dt_entrada_brasil', 'dt_nascimento',
+            'dt_nascimento_responsavel', 'dt_naturalizacao', 'dt_obito', 'st_desconhece_nome_mae',
+            'st_desconhece_nome_pai', 'ds_email_cidadao', 'st_atualizacao', 'no_cidadao',
+            'no_cidadao_filtro', 'no_mae_cidadao', 'no_pai_cidadao', 'no_social_cidadao',
+            'nu_cartao_sus_responsavel', 'nu_pis_pasep', 'nu_celular_cidadao', 'nu_declaracao_obito',
+            'ds_portaria_naturalizacao', 'ds_rg_recusa_cad', 'co_sexo', 'st_ficha', 'st_versao_atual',
+            'st_erro_inativacao', 'st_fora_area', 'st_gerado_automaticamente', 'st_ficha_inativa',
+            'st_recusa_cad', 'st_responsavel_familiar', 'tp_cds_origem', 'co_unico_ficha',
+            'co_unico_grupo', 'co_unico_ficha_origem', 'ds_versao_ficha', 'co_cbo', 'co_etnia',
+            'co_localidade_origem', 'co_municipio', 'co_nacionalidade', 'co_pais',
+            'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude', 'co_revisao'
+        ],
+        'public.tl_cds_cad_individual': [
+            'co_tipo_revisao', 'nu_cns_cidadao', 'nu_micro_area', 'nu_cpf_cidadao',
+            'nu_cpf_responsavel', 'dt_cad_individual', 'dt_entrada_brasil', 'dt_nascimento',
+            'dt_nascimento_responsavel', 'dt_naturalizacao', 'dt_obito', 'st_desconhece_nome_mae',
+            'st_desconhece_nome_pai', 'ds_email_cidadao', 'st_atualizacao', 'no_cidadao',
+            'no_cidadao_filtro', 'no_mae_cidadao', 'no_pai_cidadao', 'no_social_cidadao',
+            'nu_cartao_sus_responsavel', 'nu_pis_pasep', 'nu_celular_cidadao', 'nu_declaracao_obito',
+            'ds_portaria_naturalizacao', 'ds_rg_recusa_cad', 'co_sexo', 'st_ficha', 'st_versao_atual',
+            'st_erro_inativacao', 'st_fora_area', 'st_gerado_automaticamente', 'st_ficha_inativa',
+            'st_recusa_cad', 'st_responsavel_familiar', 'tp_cds_origem', 'co_unico_ficha',
+            'co_unico_grupo', 'co_unico_ficha_origem', 'ds_versao_ficha', 'co_cbo', 'co_etnia',
+            'co_localidade_origem', 'co_municipio', 'co_nacionalidade', 'co_pais',
+            'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude', 'co_seq_cds_cad_individual',
+            'co_revisao'
+        ],
+        'public.tb_fat_cad_individual': [
+            'co_seq_fat_cad_individual', 'nu_uuid_ficha', 'nu_uuid_ficha_origem', 'st_recusa_cadastro',
+            'st_desconhece_mae', 'co_dim_profissional', 'co_dim_tipo_ficha', 'co_dim_municipio',
+            'co_dim_unidade_saude', 'co_dim_equipe', 'co_dim_tempo', 'co_dim_validade',
+            'co_dim_validade_recusa', 'co_dim_raca_cor', 'co_dim_nacionalidade', 'co_dim_pais_nascimento',
+            'nu_uuid_dado_transp', 'nu_cpf_cidadao', 'nu_cns', 'co_fat_cidadao_pec',
+            'co_dim_sexo', 'dt_nascimento'
+        ],
+        'public.tb_fat_cidadao': [
+            'co_seq_fat_cidadao', 'nu_uuid_ficha', 'nu_uuid_ficha_origem', 'st_recusa_cadastro',
+            'st_desconhece_mae', 'co_dim_profissional', 'co_dim_tipo_ficha', 'co_dim_municipio',
+            'co_dim_unidade_saude', 'co_dim_equipe', 'co_dim_tempo', 'co_dim_validade',
+            'co_dim_validade_recusa', 'co_dim_raca_cor', 'co_dim_nacionalidade', 'co_dim_pais_nascimento',
+            'nu_uuid_dado_transp', 'nu_cpf_cidadao', 'nu_cns', 'co_dim_sexo', 'dt_nascimento'
+        ],
+        'public.tb_fat_cidadao_pec': [
+            'co_seq_fat_cidadao_pec', 'co_cidadao', 'nu_cns', 'no_cidadao', 'no_social_cidadao',
+            'co_dim_tempo_nascimento', 'co_dim_sexo', 'co_dim_identidade_genero', 'nu_telefone_celular',
+            'st_faleceu', 'st_lookup_etl', 'st_deletar', 'nu_cpf_cidadao', 'co_dim_unidade_saude_vinc',
+            'co_dim_equipe_vinc'
+        ],
+        'public.tb_cidadao': [
+            'co_seq_cidadao', 'co_localidade', 'co_unico_cidadao', 'co_pais_nascimento',
+            'co_unico_ultima_ficha', 'dt_ultima_ficha', 'co_nacionalidade', 'st_unificado',
+            'nu_cns', 'no_cidadao', 'no_cidadao_filtro', 'dt_nascimento', 'no_sexo',
+            'nu_telefone_celular', 'st_desconhece_nome_mae', 'dt_atualizado'
+        ]
+    }
+    
+    return table_columns_map.get(table_name, [])
+
 def get_table_columns(conn, table_name):
+    """Retorna colunas da tabela - usa conexão se disponível, senão usa mapeamento estático"""
+    if conn is None:
+        return get_table_columns_static(table_name)
+    
     query = """
         SELECT column_name
         FROM information_schema.columns
@@ -331,7 +399,7 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
         'co_localidade_origem': None
     }
 
-    table_columns = get_table_columns(conn, table_name) if conn else []
+    table_columns = get_table_columns(conn, table_name)
     emit_event({"type":"table_columns", "columns": table_columns})
 
     # Detectar codificação do arquivo
@@ -401,11 +469,11 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                 if 'co_sexo' in mapped_data:
                     sexo_text = str(mapped_data['co_sexo']).upper().strip() if mapped_data['co_sexo'] else ''
                     if sexo_text in ['MASCULINO', 'M']:
-                        mapped_data['co_sexo'] = 0
-                    elif sexo_text in ['FEMININO', 'F']:
                         mapped_data['co_sexo'] = 1
+                    elif sexo_text in ['FEMININO', 'F']:
+                        mapped_data['co_sexo'] = 2
                     else:
-                        mapped_data['co_sexo'] = None
+                        mapped_data['co_sexo'] = 1  # Default masculino
                 
                 # Micro área: sempre null conforme solicitado
                 mapped_data['nu_micro_area'] = None
@@ -563,6 +631,41 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                         'co_cds_prof_cadastrante', 'co_raca_cor', 'co_unidade_saude', 'co_seq_cds_cad_individual',
                         'co_revisao'
                     ]
+                elif 'tb_fat_cad_individual' in table_name:
+                    # Colunas para tabela tb_fat_cad_individual (estrutura FAT específica)
+                    all_columns = [
+                        'co_seq_fat_cad_individual', 'nu_uuid_ficha', 'nu_uuid_ficha_origem', 'st_recusa_cadastro',
+                        'st_desconhece_mae', 'co_dim_profissional', 'co_dim_tipo_ficha', 'co_dim_municipio',
+                        'co_dim_unidade_saude', 'co_dim_equipe', 'co_dim_tempo', 'co_dim_validade',
+                        'co_dim_validade_recusa', 'co_dim_raca_cor', 'co_dim_nacionalidade', 'co_dim_pais_nascimento',
+                        'nu_uuid_dado_transp', 'nu_cpf_cidadao', 'nu_cns', 'co_fat_cidadao_pec',
+                        'co_dim_sexo', 'dt_nascimento'
+                    ]
+                elif 'tb_fat_cidadao' in table_name and 'tb_fat_cidadao_pec' not in table_name:
+                    # Colunas para tabela tb_fat_cidadao (estrutura FAT específica)
+                    all_columns = [
+                        'co_seq_fat_cidadao', 'nu_uuid_ficha', 'nu_uuid_ficha_origem', 'st_recusa_cadastro',
+                        'st_desconhece_mae', 'co_dim_profissional', 'co_dim_tipo_ficha', 'co_dim_municipio',
+                        'co_dim_unidade_saude', 'co_dim_equipe', 'co_dim_tempo', 'co_dim_validade',
+                        'co_dim_validade_recusa', 'co_dim_raca_cor', 'co_dim_nacionalidade', 'co_dim_pais_nascimento',
+                        'nu_uuid_dado_transp', 'nu_cpf_cidadao', 'nu_cns', 'co_dim_sexo', 'dt_nascimento'
+                    ]
+                elif 'tb_fat_cidadao_pec' in table_name:
+                    # Colunas para tabela tb_fat_cidadao_pec (estrutura FAT específica)
+                    all_columns = [
+                        'co_seq_fat_cidadao_pec', 'co_cidadao', 'nu_cns', 'no_cidadao', 'no_social_cidadao',
+                        'co_dim_tempo_nascimento', 'co_dim_sexo', 'co_dim_identidade_genero', 'nu_telefone_celular',
+                        'st_faleceu', 'st_lookup_etl', 'st_deletar', 'nu_cpf_cidadao', 'co_dim_unidade_saude_vinc',
+                        'co_dim_equipe_vinc'
+                    ]
+                elif 'tb_cidadao' in table_name:
+                    # Colunas para tabela tb_cidadao (estrutura base específica)
+                    all_columns = [
+                        'co_seq_cidadao', 'co_localidade', 'co_unico_cidadao', 'co_pais_nascimento',
+                        'co_unico_ultima_ficha', 'dt_ultima_ficha', 'co_nacionalidade', 'st_unificado',
+                        'nu_cns', 'no_cidadao', 'no_cidadao_filtro', 'dt_nascimento', 'no_sexo',
+                        'nu_telefone_celular', 'st_desconhece_nome_mae', 'dt_atualizado'
+                    ]
                 else:
                     # Colunas para tabela tb_cds_cad_individual (baseado na estrutura real)
                     all_columns = [
@@ -600,6 +703,18 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                         if col == 'co_seq_cds_cad_individual':
                             # Usar sequência para gerar valor único
                             all_values.append("nextval('seq_tb_cds_cad_individual')")
+                        elif col == 'co_seq_fat_cad_individual':
+                            # Usar sequência específica para tabela FAT
+                            all_values.append("nextval('seq_tb_fat_cad_individual')")
+                        elif col == 'co_seq_fat_cidadao':
+                            # Usar sequência específica para tabela FAT cidadao
+                            all_values.append("nextval('seq_tb_fat_cidadao')")
+                        elif col == 'co_seq_fat_cidadao_pec':
+                            # Usar sequência específica para tabela FAT cidadao PEC
+                            all_values.append("nextval('seq_tb_fat_cidadao_pec')")
+                        elif col == 'co_seq_cidadao':
+                            # Usar sequência específica para tabela tb_cidadao
+                            all_values.append("nextval('seq_tb_cidadao')")
                         elif col == 'dt_cad_individual':
                             all_values.append(f"'{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}'")
                         elif col == 'st_desconhece_nome_mae':
@@ -656,6 +771,12 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                                 all_values.append('NULL')
                         elif col == 'nu_cns_cidadao':
                             # Usar CNS validado (só se CPF não estiver preenchido)
+                            if mapped_data.get('nu_cns_cidadao'):
+                                all_values.append(f"'{mapped_data['nu_cns_cidadao']}'")
+                            else:
+                                all_values.append('NULL')
+                        elif col == 'nu_cns':
+                            # Usar CNS validado para tabelas FAT (só se CPF não estiver preenchido)
                             if mapped_data.get('nu_cns_cidadao'):
                                 all_values.append(f"'{mapped_data['nu_cns_cidadao']}'")
                             else:
@@ -749,6 +870,65 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                                 all_values.append("nextval('seq_tl_cds_cad_individual')")
                             else:
                                 all_values.append("nextval('seq_tb_cds_cad_individual')")
+                        # Regras específicas para tb_cidadao
+                        elif col == 'co_localidade':
+                            all_values.append("'1407'")  # Cascavel
+                        elif col == 'co_unico_cidadao':
+                            # Gerar UUID único para o cidadão
+                            all_values.append(f"'{str(uuid.uuid4())}'")
+                        elif col == 'co_pais_nascimento':
+                            all_values.append("'31'")  # Brasil
+                        elif col == 'co_unico_ultima_ficha':
+                            # Mesmo valor do co_unico_cidadao
+                            all_values.append(f"'{str(uuid.uuid4())}'")
+                        elif col == 'dt_ultima_ficha':
+                            # Data atual no formato AAAAMMDD
+                            all_values.append(f"'{datetime.now().strftime('%Y%m%d')}'")
+                        elif col == 'st_unificado':
+                            all_values.append("'0'")
+                        elif col == 'no_sexo':
+                            # Mapear sexo numérico para texto
+                            sexo_num = mapped_data.get('co_sexo')
+                            if sexo_num == 1:
+                                all_values.append("'Masculino'")
+                            elif sexo_num == 2:
+                                all_values.append("'Feminino'")
+                            else:
+                                all_values.append("'N/I'")
+                        elif col == 'nu_telefone_celular':
+                            # Usar telefone formatado (apenas números)
+                            if mapped_data.get('nu_celular_cidadao'):
+                                telefone = re.sub(r'\D', '', mapped_data['nu_celular_cidadao'])
+                                all_values.append(f"'{telefone}'")
+                            else:
+                                all_values.append('NULL')
+                        elif col == 'dt_atualizado':
+                            # Data e hora atual
+                            all_values.append(f"'{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}'")
+                        elif col == 'co_seq_cds_cad_individual_old':
+                            all_values.append("nextval('seq_tb_cds_cad_individual')")
+                        # Tratamento específico para colunas das tabelas FAT
+                        elif col == 'co_seq_fat_cidadao':
+                            all_values.append("nextval('seq_tb_fat_cidadao')")
+                        elif col == 'co_seq_fat_cad_individual':
+                            all_values.append("nextval('seq_tb_fat_cad_individual')")
+                        elif col == 'nu_uuid_ficha':
+                            all_values.append(f"'{str(uuid.uuid4())}'")
+                        elif col == 'nu_uuid_ficha_origem':
+                            all_values.append(f"'{str(uuid.uuid4())}'")
+                        elif col == 'st_recusa_cadastro':
+                            all_values.append("'0'")  # Não recusou cadastro
+                        elif col == 'st_desconhece_mae':
+                            all_values.append("'0'")  # Conhece a mãe
+                        elif col in ['co_dim_profissional', 'co_dim_tipo_ficha', 'co_dim_municipio', 
+                                   'co_dim_unidade_saude', 'co_dim_equipe', 'co_dim_tempo', 
+                                   'co_dim_validade', 'co_dim_validade_recusa', 'co_dim_raca_cor', 
+                                   'co_dim_nacionalidade', 'co_dim_pais_nascimento', 'co_dim_sexo']:
+                            all_values.append("'1'")  # Valores padrão para dimensões
+                        elif col == 'nu_uuid_dado_transp':
+                            all_values.append(f"'{str(uuid.uuid4())}'")
+                        elif col == 'co_fat_cidadao_pec':
+                            all_values.append('NULL')  # Será preenchido conforme necessário
                         else:
                             all_values.append('NULL')
                 
@@ -801,6 +981,8 @@ def main():
     parser.add_argument("--env-file", default=ENV_FILE_DEFAULT, help="caminho para o .env")
     parser.add_argument("--file", default=None, help="opcional: processar apenas 1 CSV (caminho relativo ao CSV_DIR ou absoluto)")
     parser.add_argument("--co-municipio", default=None, help="código do município onde nasceu o cidadão (opcional)")
+    parser.add_argument("--table-name", default=None, help="nome da tabela de destino (sobrescreve TABLE_NAME do .env)")
+    parser.add_argument("--no-db", action="store_true", help="gerar apenas SQL sem conectar ao banco de dados")
     args = parser.parse_args()
 
     try:
@@ -814,15 +996,20 @@ def main():
     SQL_DIR = os.path.join(BASE_DIR, "backend", "scripts")
     os.makedirs(SQL_DIR, exist_ok=True)
 
-    table_name = os.getenv("TABLE_NAME", "public.tl_cds_cad_individual")
+    # Usar --table-name se fornecido, senão usar TABLE_NAME do .env
+    table_name = args.table_name if args.table_name else os.getenv("TABLE_NAME", "public.tl_cds_cad_individual")
     skip_rows = int(os.getenv("CSV_SKIP_ROWS", "18"))
 
-    try:
-        conn = get_connection()
-        emit_event({"type":"db_connected"})
-    except Exception as e:
-        emit_event({"type":"fatal", "error": str(e)})
-        return
+    conn = None
+    if not args.no_db:
+        try:
+            conn = get_connection()
+            emit_event({"type":"db_connected"})
+        except Exception as e:
+            emit_event({"type":"fatal", "error": str(e)})
+            return
+    else:
+        emit_event({"type":"info", "message": "Modo apenas SQL ativado - não conectando ao banco"})
 
     files_to_process = []
     if args.file:

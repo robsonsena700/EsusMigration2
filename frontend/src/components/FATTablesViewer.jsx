@@ -11,7 +11,10 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  BarChart3
+  BarChart3,
+  Play,
+  FileCode,
+  Upload
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import LoadingSpinner from './LoadingSpinner'
@@ -24,7 +27,9 @@ const FATTablesViewer = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalRecords, setTotalRecords] = useState(0)
   const [tableStats, setTableStats] = useState({})
-  const recordsPerPage = 50
+  const [migrationStatus, setMigrationStatus] = useState('idle') // idle, running, completed, error
+  const [migrationResult, setMigrationResult] = useState(null)
+  const recordsPerPage = 20
 
   // Definição das tabelas FAT disponíveis
   const fatTables = [
@@ -167,6 +172,104 @@ const FATTablesViewer = () => {
     }
   }
 
+  // Função para executar migração de qualquer tabela
+  const executeMigration = async (generateOnly = false) => {
+    // Verificar se a tabela suporta migração
+    const migrableTables = [
+      'tb_cidadao', 
+      'tb_fat_cidadao', 
+      'tb_fat_cidadao_pec', 
+      'tb_fat_cad_individual',
+      'tb_cds_cad_individual',
+      'tl_cds_cad_individual'
+    ];
+    
+    if (!migrableTables.includes(activeTable)) {
+      toast.error(`Migração não disponível para ${activeTable}`)
+      return
+    }
+
+    setMigrationStatus('running')
+    setMigrationResult(null)
+
+    try {
+      const response = await fetch(`/api/migration/table/${activeTable}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          generateOnly: generateOnly
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro na migração')
+      }
+
+      setMigrationStatus('completed')
+      setMigrationResult(result)
+      
+      if (generateOnly) {
+        toast.success('Script SQL gerado com sucesso!')
+      } else {
+        toast.success('Migração executada com sucesso!')
+        // Recarregar dados da tabela
+        loadTableData(activeTable, currentPage, searchTerm)
+        loadTableStats()
+      }
+    } catch (error) {
+      console.error('Erro na migração:', error)
+      setMigrationStatus('error')
+      setMigrationResult({ error: error.message })
+      toast.error(error.message || 'Erro na migração')
+    }
+  }
+
+  // Função para baixar script SQL gerado
+  const downloadGeneratedSQL = () => {
+    if (!migrationResult?.sqlContent) {
+      toast.error('Nenhum script SQL disponível')
+      return
+    }
+
+    const blob = new Blob([migrationResult.sqlContent], { type: 'text/sql' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.style.display = 'none'
+    a.href = url
+    a.download = `tb_cidadao_migration_${new Date().toISOString().split('T')[0]}.sql`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    
+    toast.success('Script SQL baixado com sucesso!')
+  }
+
+  // Obter campos de pesquisa específicos para cada tabela
+  const getSearchFields = () => {
+    const baseFields = ['nome', 'CNS']
+    
+    switch (activeTable) {
+      case 'tb_fat_cad_individual':
+        return [...baseFields, 'UUID ficha', 'data cadastro']
+      case 'tb_fat_cidadao':
+        return [...baseFields, 'CPF', 'UUID origem']
+      case 'tb_fat_cidadao_pec':
+        return [...baseFields, 'CPF', 'tempo nascimento']
+      case 'tb_cidadao':
+        return [...baseFields, 'CPF', 'telefone', 'nacionalidade']
+      case 'tl_cds_cad_individual':
+        return [...baseFields, 'UUID ficha', 'data cadastro']
+      case 'tb_cds_cad_individual':
+        return [...baseFields, 'UUID ficha', 'data cadastro']
+      default:
+        return baseFields
+    }
+  }
+
   // Renderizar cabeçalhos da tabela baseado na tabela ativa
   const renderTableHeaders = () => {
     const commonHeaders = ['ID', 'CNS', 'Nome', 'Data Nascimento', 'Sexo', 'Unidade Saúde']
@@ -255,6 +358,29 @@ const FATTablesViewer = () => {
             <Download className="h-4 w-4" />
             Exportar
           </button>
+
+          {/* Botões de migração para tabelas suportadas */}
+          {['tb_cidadao', 'tb_fat_cidadao', 'tb_fat_cidadao_pec', 'tb_fat_cad_individual', 'tb_cds_cad_individual', 'tl_cds_cad_individual'].includes(activeTable) && (
+            <>
+              <button
+                onClick={() => executeMigration(true)}
+                disabled={migrationStatus === 'running'}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FileCode className="h-4 w-4" />
+                {migrationStatus === 'running' ? 'Gerando...' : 'Gerar SQL'}
+              </button>
+              
+              <button
+                onClick={() => executeMigration(false)}
+                disabled={migrationStatus === 'running'}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Play className="h-4 w-4" />
+                {migrationStatus === 'running' ? 'Migrando...' : 'Executar Migração'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -295,13 +421,69 @@ const FATTablesViewer = () => {
         })}
       </div>
 
+      {/* Resultado da Migração para tabelas suportadas */}
+      {['tb_cidadao', 'tb_fat_cidadao', 'tb_fat_cidadao_pec', 'tb_fat_cad_individual', 'tb_cds_cad_individual', 'tl_cds_cad_individual'].includes(activeTable) && migrationResult && (
+        <div className={`p-4 rounded-lg border-2 ${
+          migrationStatus === 'completed' ? 'border-green-500 bg-green-50' :
+          migrationStatus === 'error' ? 'border-red-500 bg-red-50' :
+          'border-gray-300 bg-gray-50'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {migrationStatus === 'completed' ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : migrationStatus === 'error' ? (
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              ) : (
+                <Clock className="h-5 w-5 text-gray-600" />
+              )}
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  {migrationStatus === 'completed' ? 'Migração Concluída' :
+                   migrationStatus === 'error' ? 'Erro na Migração' :
+                   'Processando Migração'} - {activeTable}
+                </h3>
+                {migrationResult.error ? (
+                  <p className="text-sm text-red-600">{migrationResult.error}</p>
+                ) : migrationResult.message ? (
+                  <p className="text-sm text-gray-600">{migrationResult.message}</p>
+                ) : null}
+              </div>
+            </div>
+            
+            {migrationResult.sqlContent && (
+              <button
+                onClick={downloadGeneratedSQL}
+                className="flex items-center gap-2 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+              >
+                <Download className="h-4 w-4" />
+                Baixar SQL
+              </button>
+            )}
+          </div>
+          
+          {migrationResult.recordsProcessed && (
+            <div className="mt-3 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Registros processados:</span>
+                <span className="ml-2 font-semibold">{migrationResult.recordsProcessed}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Tempo de execução:</span>
+                <span className="ml-2 font-semibold">{migrationResult.executionTime || 'N/A'}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Barra de Pesquisa */}
       <div className="flex items-center gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Pesquisar por nome, CNS, CPF..."
+            placeholder={`Pesquisar por ${getSearchFields().join(', ')}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -352,34 +534,31 @@ const FATTablesViewer = () => {
 
         {/* Paginação */}
         {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Mostrando {((currentPage - 1) * recordsPerPage) + 1} a{' '}
-                {Math.min(currentPage * recordsPerPage, totalRecords)} de {totalRecords} registros
-              </div>
+          <div className="bg-gray-50 px-3 py-2 border-t border-gray-200 flex items-center justify-between text-xs">
+            <div className="text-gray-600">
+              {((currentPage - 1) * recordsPerPage) + 1}-{Math.min(currentPage * recordsPerPage, totalRecords)} de {totalRecords}
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ‹
+              </button>
               
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Anterior
-                </button>
-                
-                <span className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md">
-                  {currentPage}
-                </span>
-                
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Próxima
-                </button>
-              </div>
+              <span className="px-2 py-1 text-xs bg-blue-600 text-white rounded min-w-[24px] text-center">
+                {currentPage}
+              </span>
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ›
+              </button>
             </div>
           </div>
         )}

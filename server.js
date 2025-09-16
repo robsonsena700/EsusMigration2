@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const logger = require('./logger');
@@ -454,17 +454,49 @@ app.get('/api/config', (req, res) => {
 app.get('/api/migration/tables', (req, res) => {
   try {
     const availableTables = [
+      // Tabelas CDS principais
       {
         name: 'public.tl_cds_cad_individual',
-        displayName: 'public.tl_cds_cad_individual',
+        displayName: 'tl_cds_cad_individual',
         description: 'Tabela tl_cds_cad_individual para cadastro de indivíduos',
-        isDefault: true
+        isDefault: true,
+        category: 'CDS'
       },
       {
         name: 'public.tb_cds_cad_individual',
-        displayName: 'public.tb_cds_cad_individual',
+        displayName: 'tb_cds_cad_individual',
         description: 'Tabela tb_cds_cad_individual original do sistema',
-        isDefault: false
+        isDefault: false,
+        category: 'CDS'
+      },
+      // Tabelas FAT principais
+      {
+        name: 'public.tb_fat_cad_individual',
+        displayName: 'tb_fat_cad_individual',
+        description: 'Tabela FAT para cadastro individual',
+        isDefault: false,
+        category: 'FAT'
+      },
+      {
+        name: 'public.tb_fat_cidadao',
+        displayName: 'tb_fat_cidadao',
+        description: 'Tabela FAT para dados do cidadão',
+        isDefault: false,
+        category: 'FAT'
+      },
+      {
+        name: 'public.tb_fat_cidadao_pec',
+        displayName: 'tb_fat_cidadao_pec',
+        description: 'Tabela FAT para cidadão PEC',
+        isDefault: false,
+        category: 'FAT'
+      },
+      {
+        name: 'public.tb_cidadao',
+        displayName: 'tb_cidadao',
+        description: 'Tabela principal de cidadão',
+        isDefault: false,
+        category: 'Principal'
       }
     ];
     
@@ -552,7 +584,11 @@ app.post('/api/migration/table', (req, res) => {
     }
     
     // Validar se a tabela está na lista de tabelas permitidas
-    const allowedTables = ['public.tl_cds_cad_individual', 'public.tb_cds_cad_individual'];
+    const allowedTables = [
+      'public.tl_cds_cad_individual', 'public.tb_cds_cad_individual',
+      'public.tb_fat_cad_individual', 'public.tb_fat_cidadao', 'public.tb_fat_cidadao_pec',
+      'public.tb_cidadao'
+    ];
     if (!allowedTables.includes(tableName)) {
       return res.status(400).json({ error: 'Tabela não permitida' });
     }
@@ -589,6 +625,315 @@ app.post('/api/migration/table', (req, res) => {
   } catch (error) {
     logger.error(`Erro ao atualizar tabela de migração: ${error.message}`);
     res.status(500).json({ error: 'Erro ao atualizar tabela de migração' });
+  }
+});
+
+// Endpoint para gerar SQL para múltiplas tabelas
+// Estado global para progresso da geração de SQL
+let sqlGenerationState = {
+  isGenerating: false,
+  current: 0,
+  total: 0,
+  currentTable: '',
+  results: [],
+  errors: []
+};
+
+app.post('/api/migration/generate-multiple-sql', async (req, res) => {
+  try {
+    const { selectedTables, csvFiles } = req.body;
+    
+    // DEBUG: Log dos dados recebidos
+    console.log('🔍 DEBUG - Dados recebidos no backend:', {
+      selectedTables: selectedTables,
+      csvFiles: csvFiles,
+      body: req.body
+    });
+    
+    if (!selectedTables || selectedTables.length === 0) {
+      return res.status(400).json({ error: 'Pelo menos uma tabela deve ser selecionada' });
+    }
+    
+    if (!csvFiles || csvFiles.length === 0) {
+      return res.status(400).json({ error: 'Pelo menos um arquivo CSV deve ser fornecido' });
+    }
+    
+    // Verificar se já está gerando
+    if (sqlGenerationState.isGenerating) {
+      return res.status(409).json({ error: 'Geração de SQL já está em andamento' });
+    }
+    
+    const results = [];
+    const errors = [];
+    
+    // Validar se as tabelas estão na lista de tabelas permitidas
+    const allowedTables = [
+      'public.tl_cds_cad_individual', 'public.tb_cds_cad_individual',
+      'public.tb_fat_cad_individual', 'public.tb_fat_cidadao', 'public.tb_fat_cidadao_pec',
+      'public.tb_cidadao'
+    ];
+    
+    const invalidTables = selectedTables.filter(table => !allowedTables.includes(table));
+    if (invalidTables.length > 0) {
+      return res.status(400).json({ 
+        error: 'Tabelas não permitidas encontradas', 
+        invalidTables 
+      });
+    }
+    
+    // Inicializar estado da geração
+    sqlGenerationState = {
+      isGenerating: true,
+      current: 0,
+      total: selectedTables.length,
+      currentTable: '',
+      results: [],
+      errors: []
+    };
+    
+    const envPath = path.join(BASE_DIR, '.env');
+    let originalEnvContent = '';
+    
+    if (fs.existsSync(envPath)) {
+      originalEnvContent = fs.readFileSync(envPath, 'utf8');
+    }
+    
+    // Processar cada tabela selecionada
+    for (let i = 0; i < selectedTables.length; i++) {
+      const tableName = selectedTables[i];
+      
+      // Atualizar progresso
+      sqlGenerationState.current = i + 1;
+      sqlGenerationState.currentTable = tableName;
+      
+      try {
+        // Atualizar .env temporariamente para a tabela atual
+        const lines = originalEnvContent.split('\n');
+        let tableNameUpdated = false;
+        
+        const updatedLines = lines.map(line => {
+          if (line.startsWith('TABLE_NAME=')) {
+            tableNameUpdated = true;
+            return `TABLE_NAME=${tableName}`;
+          }
+          return line;
+        });
+        
+        if (!tableNameUpdated) {
+          updatedLines.push(`TABLE_NAME=${tableName}`);
+        }
+        
+        fs.writeFileSync(envPath, updatedLines.join('\n'));
+        
+        // Processar cada arquivo CSV para esta tabela
+        for (const csvFile of csvFiles) {
+          const csvPath = path.join(BASE_DIR, 'datacsv', csvFile);
+          
+          if (!fs.existsSync(csvPath)) {
+            errors.push(`Arquivo CSV não encontrado: ${csvFile}`);
+            continue;
+          }
+          
+          // Executar migrator.py
+          const migratorPath = path.join(BASE_DIR, 'migrator.py');
+          const pythonCmd = process.env.PYTHON_COMMAND || 'python';
+          const pythonCommand = `"${pythonCmd}" "${migratorPath}" --env-file "${envPath}" --file "${csvFile}" --table-name "${tableName}"`;
+          
+          await new Promise((resolve, reject) => {
+            exec(pythonCommand, { cwd: BASE_DIR, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+              if (error) {
+                errors.push(`Erro ao gerar SQL para ${tableName} com ${csvFile}: ${error.message}`);
+                resolve();
+                return;
+              }
+              
+              // Verificar se o arquivo SQL foi gerado
+              const sqlDir = path.join(BASE_DIR, 'backend', 'scripts');
+              const baseName = path.basename(csvFile, '.csv');
+              const tableSuffix = tableName.replace('public.', '').replace('.', '_');
+              const expectedSqlFile = path.join(sqlDir, `${tableSuffix}_${baseName}.sql`);
+              
+              if (fs.existsSync(expectedSqlFile)) {
+                const sqlContent = fs.readFileSync(expectedSqlFile, 'utf8');
+                const stats = fs.statSync(expectedSqlFile);
+                
+                const result = {
+                  tableName,
+                  csvFile,
+                  sqlFile: path.basename(expectedSqlFile),
+                  sqlPath: expectedSqlFile,
+                  fileSize: stats.size,
+                  linesCount: sqlContent.split('\n').length
+                };
+                
+                results.push(result);
+                sqlGenerationState.results.push(result);
+                
+                logger.info(`SQL gerado com sucesso: ${expectedSqlFile}`);
+              } else {
+                const error = `Arquivo SQL não foi gerado para ${tableName} com ${csvFile}`;
+                errors.push(error);
+                sqlGenerationState.errors.push(error);
+              }
+              
+              resolve();
+            });
+          });
+        }
+        
+      } catch (error) {
+        errors.push(`Erro ao processar tabela ${tableName}: ${error.message}`);
+      }
+    }
+    
+    // Restaurar .env original
+    fs.writeFileSync(envPath, originalEnvContent);
+    
+    // Finalizar estado da geração
+    sqlGenerationState.isGenerating = false;
+    sqlGenerationState.currentTable = '';
+    
+    res.json({
+      message: `Processamento concluído. ${results.length} arquivo(s) gerado(s)`,
+      results,
+      errors,
+      totalGenerated: results.length,
+      totalErrors: errors.length
+    });
+    
+  } catch (error) {
+    logger.error(`Erro ao gerar múltiplos SQLs: ${error.message}`);
+    
+    // Finalizar estado da geração em caso de erro
+    sqlGenerationState.isGenerating = false;
+    sqlGenerationState.currentTable = '';
+    
+    res.status(500).json({ error: 'Erro ao gerar múltiplos SQLs' });
+  }
+});
+
+// Endpoint para obter status da geração de SQL em tempo real
+app.get('/api/migration/sql-generation-status', (req, res) => {
+  res.json(sqlGenerationState);
+});
+
+// Endpoint para gerar SQL sem executar migração
+app.post('/api/migration/generate-sql', async (req, res) => {
+  try {
+    const { tableName, csvFile } = req.body;
+    
+    if (!tableName) {
+      return res.status(400).json({ error: 'Nome da tabela é obrigatório' });
+    }
+    
+    // Validar se a tabela está na lista de tabelas permitidas
+    const allowedTables = [
+      'public.tl_cds_cad_individual', 'public.tb_cds_cad_individual',
+      'public.tb_fat_cad_individual', 'public.tb_fat_cidadao', 'public.tb_fat_cidadao_pec',
+      'public.tb_cidadao'
+    ];
+    
+    if (!allowedTables.includes(tableName)) {
+      return res.status(400).json({ error: 'Tabela não permitida' });
+    }
+    
+    // Atualizar .env temporariamente para a tabela especificada
+    const envPath = path.join(BASE_DIR, '.env');
+    let originalEnvContent = '';
+    
+    if (fs.existsSync(envPath)) {
+      originalEnvContent = fs.readFileSync(envPath, 'utf8');
+    }
+    
+    // Criar conteúdo temporário do .env
+    const lines = originalEnvContent.split('\n');
+    let tableNameUpdated = false;
+    
+    const updatedLines = lines.map(line => {
+      if (line.startsWith('TABLE_NAME=')) {
+        tableNameUpdated = true;
+        return `TABLE_NAME=${tableName}`;
+      }
+      return line;
+    });
+    
+    if (!tableNameUpdated) {
+      updatedLines.push(`TABLE_NAME=${tableName}`);
+    }
+    
+    fs.writeFileSync(envPath, updatedLines.join('\n'));
+    
+    // Executar migrator.py apenas para gerar SQL (sem conexão com banco)
+    const migratorPath = path.join(BASE_DIR, 'migrator.py');
+    const csvDir = path.join(BASE_DIR, 'datacsv');
+    
+    // Verificar se existe pelo menos um arquivo CSV
+    let csvFiles = [];
+    if (fs.existsSync(csvDir)) {
+      csvFiles = fs.readdirSync(csvDir).filter(f => f.toLowerCase().endsWith('.csv'));
+    }
+    
+    if (csvFiles.length === 0) {
+      // Restaurar .env original
+      fs.writeFileSync(envPath, originalEnvContent);
+      return res.status(400).json({ error: 'Nenhum arquivo CSV encontrado para processar' });
+    }
+    
+    // Usar o primeiro CSV disponível ou o especificado
+    const targetCsv = csvFile || csvFiles[0];
+    const csvPath = path.join(csvDir, targetCsv);
+    
+    if (!fs.existsSync(csvPath)) {
+      // Restaurar .env original
+      fs.writeFileSync(envPath, originalEnvContent);
+      return res.status(400).json({ error: `Arquivo CSV não encontrado: ${targetCsv}` });
+    }
+    
+    // Executar migrator.py
+    const pythonCmd = process.env.PYTHON_COMMAND || 'python';
+    const pythonCommand = `"${pythonCmd}" "${migratorPath}" --env-file "${envPath}" --file "${targetCsv}"`;
+    
+    logger.info(`Gerando SQL para tabela ${tableName} com arquivo ${targetCsv}`);
+    
+    exec(pythonCommand, { cwd: BASE_DIR, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+      // Restaurar .env original
+      fs.writeFileSync(envPath, originalEnvContent);
+      
+      if (error) {
+        logger.error(`Erro ao gerar SQL: ${error.message}`);
+        return res.status(500).json({ error: 'Erro ao gerar SQL', details: error.message });
+      }
+      
+      // Verificar se o arquivo SQL foi gerado
+      const sqlDir = path.join(BASE_DIR, 'backend', 'scripts');
+      const baseName = path.basename(targetCsv, '.csv');
+      const tableSuffix = tableName.replace('public.', '').replace('.', '_');
+      const expectedSqlFile = path.join(sqlDir, `${tableSuffix}_${baseName}.sql`);
+      
+      if (fs.existsSync(expectedSqlFile)) {
+        const sqlContent = fs.readFileSync(expectedSqlFile, 'utf8');
+        const stats = fs.statSync(expectedSqlFile);
+        
+        logger.info(`SQL gerado com sucesso: ${expectedSqlFile}`);
+        res.json({
+          message: 'SQL gerado com sucesso',
+          tableName,
+          csvFile: targetCsv,
+          sqlFile: path.basename(expectedSqlFile),
+          sqlPath: expectedSqlFile,
+          fileSize: stats.size,
+          linesCount: sqlContent.split('\n').length,
+          preview: sqlContent.substring(0, 500) + (sqlContent.length > 500 ? '...' : '')
+        });
+      } else {
+        logger.error(`Arquivo SQL não foi gerado: ${expectedSqlFile}`);
+        res.status(500).json({ error: 'Arquivo SQL não foi gerado', expectedPath: expectedSqlFile });
+      }
+    });
+    
+  } catch (error) {
+    logger.error(`Erro ao gerar SQL: ${error.message}`);
+    res.status(500).json({ error: 'Erro ao gerar SQL' });
   }
 });
 
@@ -717,6 +1062,136 @@ app.delete('/api/config/saved/:id', (req, res) => {
   } else {
     res.status(500).json({ error: 'Erro ao deletar configuração' });
   }
+});
+
+// Endpoint genérico para migração de todas as tabelas
+app.post('/api/migration/table/:tableName', async (req, res) => {
+  try {
+    const { tableName } = req.params;
+    const { csvFile, generateOnly = false } = req.body;
+    
+    // Validar tabelas permitidas
+    const allowedTables = [
+      'tb_cidadao', 
+      'tb_fat_cidadao', 
+      'tb_fat_cidadao_pec', 
+      'tb_fat_cad_individual',
+      'tb_cds_cad_individual',
+      'tl_cds_cad_individual'
+    ];
+    
+    if (!allowedTables.includes(tableName)) {
+      return res.status(400).json({ error: `Tabela não permitida: ${tableName}` });
+    }
+    
+    logger.info(`Iniciando migração ${tableName} - Arquivo: ${csvFile || 'todos'}, Apenas SQL: ${generateOnly}`);
+    
+    // Verificar se existe pelo menos um arquivo CSV
+    const csvDir = path.join(BASE_DIR, 'datacsv');
+    let csvFiles = [];
+    
+    if (fs.existsSync(csvDir)) {
+      csvFiles = fs.readdirSync(csvDir).filter(f => f.toLowerCase().endsWith('.csv'));
+    }
+    
+    if (csvFiles.length === 0) {
+      return res.status(400).json({ error: 'Nenhum arquivo CSV encontrado para processar' });
+    }
+    
+    // Usar o arquivo especificado ou o primeiro disponível
+    const targetCsv = csvFile || csvFiles[0];
+    const csvPath = path.join(csvDir, targetCsv);
+    
+    if (!fs.existsSync(csvPath)) {
+      return res.status(400).json({ error: `Arquivo CSV não encontrado: ${targetCsv}` });
+    }
+    
+    // Preparar argumentos para o migrator
+    const migratorPath = path.join(BASE_DIR, 'migrator.py');
+    const envPath = path.join(BASE_DIR, '.env');
+    const pythonCmd = process.env.PYTHON_COMMAND || 'python';
+    
+    // Argumentos base
+    const args = [
+      `"${migratorPath}"`,
+      '--env-file', `"${envPath}"`,
+      '--file', `"${targetCsv}"`,
+      '--table-name', `public.${tableName}`
+    ];
+    
+    // Se for apenas geração de SQL, não conectar ao banco
+    if (generateOnly) {
+      args.push('--no-db');
+    }
+    
+    const pythonCommand = `"${pythonCmd}" ${args.join(' ')}`;
+    
+    logger.info(`Executando comando: ${pythonCommand}`);
+    
+    // Executar o comando
+    const { exec } = require('child_process');
+    exec(pythonCommand, { cwd: BASE_DIR }, (error, stdout, stderr) => {
+      if (error) {
+        logger.error(`Erro na migração ${tableName}: ${error.message}`);
+        return res.status(500).json({ 
+          error: 'Erro na migração', 
+          details: error.message,
+          stdout: stdout,
+          stderr: stderr
+        });
+      }
+      
+      // Verificar se o arquivo SQL foi gerado
+      const sqlDir = path.join(BASE_DIR, 'backend', 'scripts');
+      const baseName = path.basename(targetCsv, '.csv');
+      const expectedSqlFile = path.join(sqlDir, `${tableName}_${baseName}.sql`);
+      
+      let sqlGenerated = false;
+      let sqlContent = '';
+      let sqlStats = null;
+      
+      if (fs.existsSync(expectedSqlFile)) {
+        sqlGenerated = true;
+        sqlContent = fs.readFileSync(expectedSqlFile, 'utf8');
+        sqlStats = fs.statSync(expectedSqlFile);
+        logger.info(`SQL gerado: ${expectedSqlFile} (${sqlStats.size} bytes)`);
+      }
+      
+      // Resposta de sucesso
+      const response = {
+        success: true,
+        tableName: tableName,
+        csvFile: targetCsv,
+        generateOnly: generateOnly,
+        sqlGenerated: sqlGenerated,
+        sqlFile: sqlGenerated ? `${tableName}_${baseName}.sql` : null,
+        sqlSize: sqlStats ? sqlStats.size : 0,
+        stdout: stdout,
+        stderr: stderr
+      };
+      
+      if (generateOnly && sqlGenerated) {
+        response.message = `Script SQL gerado com sucesso para ${tableName}`;
+      } else if (!generateOnly) {
+        response.message = `Migração da ${tableName} executada com sucesso`;
+      } else {
+        response.message = 'Processo concluído, mas nenhum SQL foi gerado';
+      }
+      
+      logger.info(`Migração ${tableName} concluída: ${response.message}`);
+      res.json(response);
+    });
+    
+  } catch (error) {
+    logger.error(`Erro na migração: ${error.message}`);
+    res.status(500).json({ error: 'Erro interno na migração', details: error.message });
+  }
+});
+
+// Endpoint específico para migração da tb_cidadao (mantido para compatibilidade)
+app.post('/api/migration/tb-cidadao', async (req, res) => {
+  req.params = { tableName: 'tb_cidadao' };
+  return app._router.handle(req, res, () => {});
 });
 
 // Endpoint para upload de CSV
