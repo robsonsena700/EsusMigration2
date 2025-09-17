@@ -332,26 +332,45 @@ def map_csv_columns_to_db(csv_columns, table_name):
 def get_unidade_saude_by_ine(conn, ine_equipe):
     """
     Busca o código da unidade de saúde pelo INE da equipe
+    Tenta diferentes formatos de INE para garantir compatibilidade
     """
     if not conn or not ine_equipe:
         return None
     
     try:
         cur = conn.cursor()
-        cur.execute("""
-            SELECT co_unidade_saude 
-            FROM tb_equipe 
-            WHERE nu_ine = %s
-        """, (ine_equipe,))
         
-        result = cur.fetchone()
+        # Limpar o INE removendo aspas e espaços
+        ine_clean = str(ine_equipe).strip().strip('"').strip("'")
+        
+        # Lista de formatos de INE para tentar
+        ine_formats = [
+            ine_clean,                    # Formato original
+            ine_clean.zfill(10),         # Com zeros à esquerda (10 dígitos)
+            ine_clean.lstrip('0'),       # Sem zeros à esquerda
+        ]
+        
+        # Remover duplicatas mantendo a ordem
+        ine_formats = list(dict.fromkeys(ine_formats))
+        
+        for ine_format in ine_formats:
+            cur.execute("""
+                SELECT co_unidade_saude 
+                FROM tb_equipe 
+                WHERE nu_ine = %s
+            """, (ine_format,))
+            
+            result = cur.fetchone()
+            
+            if result:
+                cur.close()
+                emit_event({"type": "info", "message": f"INE '{ine_equipe}' encontrado como '{ine_format}' -> Unidade: {result[0]}"})
+                return result[0]
+        
         cur.close()
+        emit_event({"type": "warning", "message": f"INE equipe '{ine_equipe}' não encontrado na tabela tb_equipe (tentados: {ine_formats})"})
+        return None
         
-        if result:
-            return result[0]
-        else:
-            emit_event({"type": "warning", "message": f"INE equipe '{ine_equipe}' não encontrado na tabela tb_equipe"})
-            return None
     except Exception as e:
         emit_event({"type": "error", "message": f"Erro ao buscar unidade de saúde pelo INE {ine_equipe}: {e}"})
         return None
@@ -468,9 +487,9 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                 # Sexo: converter texto para código baseado em tb_sexo
                 if 'co_sexo' in mapped_data:
                     sexo_text = str(mapped_data['co_sexo']).upper().strip() if mapped_data['co_sexo'] else ''
-                    if sexo_text in ['MASCULINO', 'M']:
+                    if sexo_text in ['MASCULINO', 'M', 'HOMEM', '1']:
                         mapped_data['co_sexo'] = 1
-                    elif sexo_text in ['FEMININO', 'F']:
+                    elif sexo_text in ['FEMININO', 'F', 'MULHER', '2']:
                         mapped_data['co_sexo'] = 2
                     else:
                         mapped_data['co_sexo'] = 1  # Default masculino
@@ -701,8 +720,11 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                     else:
                         # Valores padrão conforme modelo com regras específicas
                         if col == 'co_seq_cds_cad_individual':
-                            # Usar sequência para gerar valor único
-                            all_values.append("nextval('seq_tb_cds_cad_individual')")
+                            # Usar a sequência apropriada baseada na tabela
+                            if 'tl_cds_cad_individual' in table_name:
+                                all_values.append("nextval('seq_tl_cds_cad_individual')")
+                            else:
+                                all_values.append("nextval('seq_tb_cds_cad_individual')")
                         elif col == 'co_seq_fat_cad_individual':
                             # Usar sequência específica para tabela FAT
                             all_values.append("nextval('seq_tb_fat_cad_individual')")
@@ -821,16 +843,11 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                         elif col == 'co_cds_prof_cadastrante':
                             all_values.append(f"'{esus_data['co_cds_prof_cadastrante']}'")
                         elif col == 'co_unidade_saude':
-                            # Diferenciação entre tabelas para co_unidade_saude
-                            if 'tl_cds_cad_individual' in table_name:
-                                # Para tl_cds_cad_individual: sempre NULL conforme especificação
-                                all_values.append('NULL')
+                            # Usar co_unidade_saude encontrado pelo INE equipe, senão usar padrão
+                            if co_unidade_saude_from_ine:
+                                all_values.append(f"'{co_unidade_saude_from_ine}'")
                             else:
-                                # Para tb_cds_cad_individual: usar co_unidade_saude encontrado pelo INE equipe, senão usar padrão
-                                if co_unidade_saude_from_ine:
-                                    all_values.append(f"'{co_unidade_saude_from_ine}'")
-                                else:
-                                    all_values.append(f"'{esus_data['co_unidade_saude']}'")
+                                all_values.append(f"'{esus_data['co_unidade_saude']}'")
                         elif col == 'co_localidade_origem':
                             # Sempre usar 1407 (Cascavel)
                             all_values.append("'1407'")
@@ -887,14 +904,15 @@ def csv_to_insert(csv_file, sql_file, table_name, skip_rows, conn=None, co_munic
                         elif col == 'st_unificado':
                             all_values.append("'0'")
                         elif col == 'no_sexo':
-                            # Mapear sexo numérico para texto
+                            # Mapear sexo numérico para texto usando tb_sexo como referência
                             sexo_num = mapped_data.get('co_sexo')
-                            if sexo_num == 1:
-                                all_values.append("'Masculino'")
-                            elif sexo_num == 2:
-                                all_values.append("'Feminino'")
+                            if sexo_num == 1:  # MASCULINO na tb_sexo
+                                all_values.append("'MASCULINO'")
+                            elif sexo_num == 2:  # FEMININO na tb_sexo
+                                all_values.append("'FEMININO'")
                             else:
-                                all_values.append("'N/I'")
+                                # Para valores inválidos, usar MASCULINO como padrão (conforme enum e-SUS PEC)
+                                all_values.append("'MASCULINO'")
                         elif col == 'nu_telefone_celular':
                             # Usar telefone formatado (apenas números)
                             if mapped_data.get('nu_celular_cidadao'):

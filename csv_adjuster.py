@@ -20,16 +20,17 @@ class CSVAdjuster:
             'Data de nascimento': 'dt_nascimento',
             'Sexo': 'co_sexo',
             'Telefone celular': 'nu_celular_cidadao',
-            'Endereço': 'ds_endereco',
-            'Nome equipe': 'no_equipe',
-            'INE equipe': 'ine_equipe',
             'Microárea': 'nu_micro_area',
-            'Idade': 'idade_calculada',
-            'Identidade de gênero': 'identidade_genero',
-            'Telefone residencial': 'telefone_residencial',
-            'Telefone de contato': 'telefone_contato',
-            'Última atualização cadastral': 'dt_ultima_atualizacao',
-            'Origem': 'origem_cadastro'
+            # Removidos mapeamentos para colunas que não existem na tabela
+            # 'Endereço': 'ds_endereco',
+            # 'Nome equipe': 'no_equipe',
+            # 'INE equipe': 'ine_equipe',
+            # 'Idade': 'idade_calculada',
+            # 'Identidade de gênero': 'identidade_genero',
+            # 'Telefone residencial': 'telefone_residencial',
+            # 'Telefone de contato': 'telefone_contato',
+            # 'Última atualização cadastral': 'dt_ultima_atualizacao',
+            # 'Origem': 'origem_cadastro'
         }
         
     def load_table_structure(self, table_name: str, schema: str = 'public') -> bool:
@@ -151,12 +152,14 @@ class CSVAdjuster:
             return ''
         
         sex_mapping = {
-            'masculino': '1',
-            'feminino': '2',
-            'male': '1',
-            'female': '2',
-            'm': '1',
-            'f': '2'
+            'masculino': '0',
+            'feminino': '1',
+            'male': '0',
+            'female': '1',
+            'm': '0',
+            'f': '1',
+            'homem': '0',
+            'mulher': '1'
         }
         
         return sex_mapping.get(sex.lower().strip(), '')

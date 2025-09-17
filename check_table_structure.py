@@ -1,190 +1,92 @@
-import os
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import psycopg2
+import os
 from dotenv import load_dotenv
 
 # Carregar variáveis de ambiente
 load_dotenv()
 
 def check_table_structure():
+    """Verifica a estrutura das tabelas relacionadas ao sexo"""
     try:
         # Conectar ao banco
         conn = psycopg2.connect(
-            host=os.getenv('POSTGRES_HOST'),
-            port=os.getenv('POSTGRES_PORT'),
-            database=os.getenv('POSTGRES_DB'),
-            user=os.getenv('POSTGRES_USER'),
-            password=os.getenv('POSTGRES_PASSWORD')
+            host=os.getenv('POSTGRES_HOST', '127.0.0.1'),
+            database=os.getenv('POSTGRES_DB', 'esus'),
+            user=os.getenv('POSTGRES_USER', 'postgres'),
+            password=os.getenv('POSTGRES_PASSWORD'),
+            port=os.getenv('POSTGRES_PORT', 5433)
         )
+        cursor = conn.cursor()
         
-        cur = conn.cursor()
-        
-        # Buscar informações detalhadas sobre co_seq_cds_cad_individual
-        cur.execute("""
-            SELECT 
-                column_name, 
-                data_type, 
-                character_maximum_length, 
-                is_nullable, 
-                column_default,
-                ordinal_position
+        print("=== ESTRUTURA DA tb_fat_cidadao_pec ===")
+        cursor.execute("""
+            SELECT column_name, data_type 
             FROM information_schema.columns 
-            WHERE table_name = 'tl_cds_cad_individual' 
-            AND table_schema = 'public'
-            AND column_name = 'co_seq_cds_cad_individual'
-            ORDER BY ordinal_position;
+            WHERE table_name = 'tb_fat_cidadao_pec' 
+            ORDER BY ordinal_position
         """)
+        columns = cursor.fetchall()
+        for col_name, data_type in columns:
+            print(f"{col_name}: {data_type}")
         
-        seq_field = cur.fetchall()
-        
-        print("\n" + "="*80)
-        print("🔍 INFORMAÇÕES DO CAMPO co_seq_cds_cad_individual:")
-        print("="*80)
-        
-        if seq_field:
-            for col in seq_field:
-                column_name, data_type, max_length, nullable, default_val, position = col
-                max_len_str = str(max_length) if max_length else 'N/A'
-                nullable_str = "SIM" if nullable == 'YES' else "NÃO"
-                default_str = str(default_val) if default_val else 'N/A'
-                
-                print(f"📋 Campo: {column_name}")
-                print(f"   Tipo: {data_type}")
-                print(f"   Tamanho máximo: {max_len_str}")
-                print(f"   Permite NULL: {nullable_str}")
-                print(f"   Valor padrão: {default_str}")
-                print(f"   Posição: {position}")
-        else:
-            print("❌ Campo co_seq_cds_cad_individual não encontrado!")
-        
-        # Verificar se há sequências associadas
-        cur.execute("""
-            SELECT 
-                s.sequence_name,
-                s.data_type,
-                s.start_value,
-                s.increment,
-                s.maximum_value,
-                s.cycle_option
-            FROM information_schema.sequences s
-            WHERE s.sequence_schema = 'public'
-            AND s.sequence_name LIKE '%cad_individual%';
+        print("\n=== COLUNAS DE SEXO NA tb_fat_cidadao_pec ===")
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'tb_fat_cidadao_pec' 
+            AND column_name LIKE '%sexo%'
         """)
+        sexo_columns = cursor.fetchall()
+        for col in sexo_columns:
+            print(f"Coluna de sexo: {col[0]}")
         
-        sequences = cur.fetchall()
-        
-        print("\n🔄 SEQUÊNCIAS RELACIONADAS:")
-        print("-"*50)
-        
-        if sequences:
-            for seq in sequences:
-                seq_name, data_type, start_val, increment, max_val, cycle = seq
-                print(f"📊 Sequência: {seq_name}")
-                print(f"   Tipo: {data_type}")
-                print(f"   Valor inicial: {start_val}")
-                print(f"   Incremento: {increment}")
-                print(f"   Valor máximo: {max_val}")
-                print(f"   Ciclo: {cycle}")
-        else:
-            print("❌ Nenhuma sequência encontrada para cad_individual")
-        
-        # Verificar constraints da tabela
-        cur.execute("""
-            SELECT 
-                tc.constraint_name,
-                tc.constraint_type,
-                kcu.column_name
-            FROM information_schema.table_constraints tc
-            JOIN information_schema.key_column_usage kcu 
-                ON tc.constraint_name = kcu.constraint_name
-            WHERE tc.table_name = 'tl_cds_cad_individual' 
-            AND tc.table_schema = 'public'
-            AND kcu.column_name = 'co_seq_cds_cad_individual';
+        print("\n=== ESTRUTURA DA tb_cidadao ===")
+        cursor.execute("""
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'tb_cidadao' 
+            AND column_name LIKE '%sexo%'
+            ORDER BY ordinal_position
         """)
+        cidadao_sexo = cursor.fetchall()
+        for col_name, data_type in cidadao_sexo:
+            print(f"{col_name}: {data_type}")
         
-        constraints = cur.fetchall()
+        print("\n=== VALORES ÚNICOS DE SEXO ===")
         
-        print("\n🔒 CONSTRAINTS DO CAMPO:")
-        print("-"*50)
+        # tb_cidadao
+        cursor.execute("SELECT DISTINCT no_sexo, COUNT(*) FROM tb_cidadao GROUP BY no_sexo ORDER BY COUNT(*) DESC")
+        cidadao_values = cursor.fetchall()
+        print("tb_cidadao.no_sexo:")
+        for value, count in cidadao_values:
+            print(f"  '{value}': {count}")
         
-        if constraints:
-            for constraint in constraints:
-                constraint_name, constraint_type, column_name = constraint
-                print(f"🔐 Constraint: {constraint_name}")
-                print(f"   Tipo: {constraint_type}")
-                print(f"   Coluna: {column_name}")
+        # tb_fat_cidadao_pec - verificar se tem co_dim_sexo
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'tb_fat_cidadao_pec' 
+            AND column_name = 'co_dim_sexo'
+        """)
+        has_co_dim_sexo = cursor.fetchone()
+        
+        if has_co_dim_sexo:
+            cursor.execute("SELECT DISTINCT co_dim_sexo, COUNT(*) FROM tb_fat_cidadao_pec GROUP BY co_dim_sexo ORDER BY COUNT(*) DESC")
+            fat_values = cursor.fetchall()
+            print("tb_fat_cidadao_pec.co_dim_sexo:")
+            for value, count in fat_values:
+                print(f"  {value}: {count}")
         else:
-            print("❌ Nenhuma constraint específica encontrada para co_seq_cds_cad_individual")
+            print("tb_fat_cidadao_pec não tem coluna co_dim_sexo")
         
-        # Consultar estrutura da tabela
-        query = """
-        SELECT 
-            column_name,
-            data_type,
-            character_maximum_length,
-            is_nullable,
-            column_default
-        FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-        AND table_name = 'tl_cds_cad_individual'
-        ORDER BY ordinal_position;
-        """
-        
-        cur.execute(query)
-        columns = cur.fetchall()
-        
-        print("🔍 ESTRUTURA DA TABELA tl_cds_cad_individual")
-        print("=" * 80)
-        print(f"{'COLUNA':<35} {'TIPO':<20} {'TAMANHO':<10} {'NULO':<8} {'PADRÃO':<15}")
-        print("-" * 80)
-        
-        varchar_11_fields = []
-        varchar_3_fields = []
-        varchar_9_fields = []
-        
-        for col in columns:
-            column_name, data_type, max_length, nullable, default = col
-            
-            # Identificar campos com limitação específica
-            if data_type == 'character varying':
-                if max_length == 11:
-                    varchar_11_fields.append(column_name)
-                elif max_length == 3:
-                    varchar_3_fields.append(column_name)
-                elif max_length == 9:
-                    varchar_9_fields.append(column_name)
-            
-            max_len_str = str(max_length) if max_length else 'N/A'
-            nullable_str = 'SIM' if nullable == 'YES' else 'NÃO'
-            default_str = str(default)[:15] if default else 'N/A'
-            
-            print(f"{column_name:<35} {data_type:<20} {max_len_str:<10} {nullable_str:<8} {default_str:<15}")
-        
-        print("\n" + "=" * 80)
-        print("📋 CAMPOS COM LIMITAÇÃO DE CARACTERES:")
-        
-        if varchar_11_fields:
-            print(f"\n🔴 VARCHAR(11) - {len(varchar_11_fields)} campos:")
-            for field in varchar_11_fields:
-                print(f"   • {field}")
-        
-        if varchar_3_fields:
-            print(f"\n🟡 VARCHAR(3) - {len(varchar_3_fields)} campos:")
-            for field in varchar_3_fields:
-                print(f"   • {field}")
-        
-        if varchar_9_fields:
-            print(f"\n🟠 VARCHAR(9) - {len(varchar_9_fields)} campos:")
-            for field in varchar_9_fields:
-                print(f"   • {field}")
-        
-        cur.close()
+        cursor.close()
         conn.close()
         
-        return varchar_11_fields, varchar_3_fields, varchar_9_fields
-        
     except Exception as e:
-        print(f"❌ Erro ao verificar estrutura: {e}")
-        return [], [], []
+        print(f"Erro: {e}")
 
 if __name__ == "__main__":
     check_table_structure()

@@ -31,6 +31,26 @@ const FATTablesViewer = () => {
   const [migrationResult, setMigrationResult] = useState(null)
   const recordsPerPage = 20
 
+  // Função para formatar data no formato DD/MM/AAAA HH:MM:SS
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '-'
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return '-'
+      
+      const day = date.getDate().toString().padStart(2, '0')
+      const month = (date.getMonth() + 1).toString().padStart(2, '0')
+      const year = date.getFullYear()
+      const hours = date.getHours().toString().padStart(2, '0')
+      const minutes = date.getMinutes().toString().padStart(2, '0')
+      const seconds = date.getSeconds().toString().padStart(2, '0')
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
+    } catch (error) {
+      return '-'
+    }
+  }
+
   // Definição das tabelas FAT disponíveis
   const fatTables = [
     {
@@ -254,7 +274,7 @@ const FATTablesViewer = () => {
     
     switch (activeTable) {
       case 'tb_fat_cad_individual':
-        return [...baseFields, 'UUID ficha', 'data cadastro']
+        return ['CNS', 'CPF', 'UUID ficha']
       case 'tb_fat_cidadao':
         return ['CNS', 'UUID ficha', 'UUID ficha origem']
       case 'tb_fat_cidadao_pec':
@@ -274,7 +294,16 @@ const FATTablesViewer = () => {
           'Único Ficha Origem'
         ]
       case 'tl_cds_cad_individual':
-        return ['Micro área', 'CPF cidadão', 'Nome cidadão', 'Data nascimento', 'Celular cidadão', 'Raça/cor', 'Nacionalidade', 'Único ficha origem']
+        return [
+          'Micro Área', 
+          'CPF Cidadão', 
+          'Nome Cidadão', 
+          'Data Nascimento', 
+          'Celular Cidadão', 
+          'Raça/Cor', 
+          'Nacionalidade', 
+          'Único Ficha Origem'
+        ]
       default:
         return baseFields
     }
@@ -325,8 +354,30 @@ const FATTablesViewer = () => {
           'Raça/Cor', 
           'Nacionalidade', 
           'País Nascimento', 
-          'Único Cidadão', 
-          'Única Ficha'
+          'Único Cidadão'
+        ]
+      case 'tb_cds_cad_individual':
+        return [
+          'Microárea',
+          'CPF', 
+          'Nome Cidadão', 
+          'Data Nascimento', 
+          'Sexo', 
+          'Telefone Celular', 
+          'Raça/Cor', 
+          'Nacionalidade', 
+          'UUID Ficha Origem'
+        ]
+      case 'tl_cds_cad_individual':
+        return [
+          'Micro Área',
+          'CPF Cidadão', 
+          'Nome Cidadão', 
+          'Data Nascimento', 
+          'Celular Cidadão', 
+          'Raça/Cor', 
+          'Nacionalidade', 
+          'Único Ficha Origem'
         ]
       default:
         return commonHeaders
@@ -385,8 +436,8 @@ const FATTablesViewer = () => {
             <td className="px-4 py-3 text-sm text-gray-900">{record.nu_micro_area || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cpf_cidadao || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900 font-medium">{record.no_cidadao || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.no_sexo || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.dt_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{record.no_sexo || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.nu_celular_cidadao || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.co_raca_cor || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.co_nacionalidade || '-'}</td>
@@ -397,7 +448,7 @@ const FATTablesViewer = () => {
             <td className="px-4 py-3 text-sm text-gray-900">{record.nu_micro_area || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.nu_cpf_cidadao || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900 font-medium">{record.no_cidadao || '-'}</td>
-            <td className="px-4 py-3 text-sm text-gray-900">{record.dt_nascimento || '-'}</td>
+            <td className="px-4 py-3 text-sm text-gray-900">{formatDateTime(record.dt_nascimento)}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.nu_celular_cidadao || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.co_raca_cor || '-'}</td>
             <td className="px-4 py-3 text-sm text-gray-900">{record.co_nacionalidade || '-'}</td>

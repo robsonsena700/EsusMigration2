@@ -1130,7 +1130,7 @@ app.post('/api/migration/table/:tableName', async (req, res) => {
     
     // Executar o comando
     const { exec } = require('child_process');
-    exec(pythonCommand, { cwd: BASE_DIR }, (error, stdout, stderr) => {
+    exec(pythonCommand, { cwd: BASE_DIR, maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) {
         logger.error(`Erro na migração ${tableName}: ${error.message}`);
         return res.status(500).json({ 
@@ -1234,18 +1234,17 @@ app.get('/api/fat-tables/data', async (req, res) => {
     switch (table) {
       case 'tb_fat_cad_individual':
         selectFields = `
+          co_seq_fat_cad_individual as id,
           nu_cns,
           nu_cpf_cidadao,
           co_dim_sexo,
           dt_nascimento,
           co_dim_raca_cor,
           co_dim_nacionalidade,
-          co_dim_pais_nascimento,
-          nu_uuid_ficha,
-          nu_uuid_ficha_origem
+          co_dim_pais_nascimento
         `;
         if (search) {
-          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%' OR nu_uuid_ficha ILIKE '%${search}%'`;
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%'`;
         }
         break;
         
@@ -1253,11 +1252,14 @@ app.get('/api/fat-tables/data', async (req, res) => {
         selectFields = `
           co_seq_fat_cidadao as id,
           nu_cns,
-          nu_uuid_ficha,
-          nu_uuid_ficha_origem
+          nu_cpf_cidadao,
+          co_fat_cad_individual,
+          co_dim_municipio,
+          co_dim_unidade_saude,
+          co_dim_equipe
         `;
         if (search) {
-          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_uuid_ficha ILIKE '%${search}%' OR nu_uuid_ficha_origem ILIKE '%${search}%'`;
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%'`;
         }
         break;
         
@@ -1271,10 +1273,10 @@ app.get('/api/fat-tables/data', async (req, res) => {
           no_cidadao,
           co_dim_tempo_nascimento,
           nu_telefone_celular,
-          nu_uuid_ficha
+          co_dim_sexo
         `;
         if (search) {
-          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%' OR no_cidadao ILIKE '%${search}%' OR nu_telefone_celular ILIKE '%${search}%' OR nu_uuid_ficha ILIKE '%${search}%'`;
+          searchCondition = `WHERE nu_cns ILIKE '%${search}%' OR nu_cpf_cidadao ILIKE '%${search}%' OR no_cidadao ILIKE '%${search}%' OR nu_telefone_celular ILIKE '%${search}%'`;
         }
         break;
         
@@ -1322,7 +1324,7 @@ app.get('/api/fat-tables/data', async (req, res) => {
           c.nu_micro_area,
           c.nu_cpf_cidadao,
           c.no_cidadao,
-          s.no_identificador as no_sexo,
+          s.no_sexo,
           c.dt_nascimento,
           c.nu_celular_cidadao,
           c.co_raca_cor,
@@ -1342,11 +1344,16 @@ app.get('/api/fat-tables/data', async (req, res) => {
     const countResult = await client.query(countQuery);
     const totalRecords = parseInt(countResult.rows[0].total);
 
-    // Query para buscar todos os dados (sem paginação)
+    // Validar parâmetros de paginação
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(Math.max(1, parseInt(limit)), 1000); // Máximo 1000 registros por página
+    const offset = (pageNum - 1) * limitNum;
+    
+    // Calcular total de páginas
+    const totalPages = Math.ceil(totalRecords / limitNum);
+
+    // Query para buscar dados com paginação
     let orderBy = 'id DESC';
-    if (table === 'tb_fat_cad_individual') {
-      orderBy = 'nu_uuid_ficha DESC';
-    }
     
     const dataFromClause = fromClause || `FROM ${table}`;
     const dataQuery = `
@@ -1354,21 +1361,24 @@ app.get('/api/fat-tables/data', async (req, res) => {
       ${dataFromClause}
       ${searchCondition}
       ORDER BY ${orderBy}
+      LIMIT $1 OFFSET $2
     `;
     
-    logger.info(`📊 Query: ${dataQuery}`);
-    const dataResult = await client.query(dataQuery);
+    logger.info(`📊 Query: ${dataQuery} (LIMIT: ${limitNum}, OFFSET: ${offset})`);
+    const dataResult = await client.query(dataQuery, [limitNum, offset]);
     
     await client.end();
 
-    logger.info(`✅ Dados obtidos: ${dataResult.rows.length} registros de ${totalRecords} total`);
+    logger.info(`✅ Dados obtidos: ${dataResult.rows.length} registros de ${totalRecords} total (página ${pageNum}/${totalPages})`);
 
     res.json({
       records: dataResult.rows,
       total: totalRecords,
-      page: 1,
-      limit: totalRecords,
-      totalPages: 1
+      page: pageNum,
+      limit: limitNum,
+      totalPages: totalPages,
+      hasNextPage: pageNum < totalPages,
+      hasPrevPage: pageNum > 1
     });
 
   } catch (error) {
@@ -1378,9 +1388,30 @@ app.get('/api/fat-tables/data', async (req, res) => {
   }
 });
 
+// Cache para estatísticas (5 minutos)
+let statsCache = null;
+let statsCacheTime = 0;
+const STATS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+// Endpoint para limpar cache de estatísticas
+app.delete('/api/fat-tables/stats/cache', (req, res) => {
+  statsCache = null;
+  statsCacheTime = 0;
+  logger.info('🗑️ Cache de estatísticas limpo');
+  res.json({ message: 'Cache limpo com sucesso' });
+});
+
 // Endpoint para estatísticas das tabelas FAT
 app.get('/api/fat-tables/stats', async (req, res) => {
   try {
+    // Verificar cache (permitir forçar atualização com ?refresh=true)
+    const forceRefresh = req.query.refresh === 'true';
+    const now = Date.now();
+    if (!forceRefresh && statsCache && (now - statsCacheTime) < STATS_CACHE_DURATION) {
+      logger.info('📊 Retornando estatísticas do cache');
+      return res.json(statsCache);
+    }
+
     const client = new Client({
       host: process.env.POSTGRES_HOST,
       port: parseInt(process.env.POSTGRES_PORT),
@@ -1391,58 +1422,61 @@ app.get('/api/fat-tables/stats', async (req, res) => {
 
     await client.connect();
 
-    // Consultar estatísticas reais de cada tabela
-    const tables = [
-      'tb_fat_cad_individual',
-      'tb_fat_cidadao', 
-      'tb_fat_cidadao_pec',
-      'tb_cidadao',
-      'tl_cds_cad_individual',
-      'tb_cds_cad_individual'
-    ];
+    // Consulta otimizada única para todas as tabelas
+    const optimizedStatsQuery = `
+      WITH table_stats AS (
+        SELECT 
+          'tb_fat_cad_individual' as table_name,
+          (SELECT COUNT(*) FROM tb_fat_cad_individual) as total,
+          (SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tb_fat_cad_individual')) as exists
+        UNION ALL
+        SELECT 
+          'tb_fat_cidadao' as table_name,
+          (SELECT COUNT(*) FROM tb_fat_cidadao) as total,
+          (SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tb_fat_cidadao')) as exists
+        UNION ALL
+        SELECT 
+          'tb_fat_cidadao_pec' as table_name,
+          (SELECT COUNT(*) FROM tb_fat_cidadao_pec) as total,
+          (SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tb_fat_cidadao_pec')) as exists
+        UNION ALL
+        SELECT 
+          'tb_cidadao' as table_name,
+          (SELECT COUNT(*) FROM tb_cidadao) as total,
+          (SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tb_cidadao')) as exists
+        UNION ALL
+        SELECT 
+          'tl_cds_cad_individual' as table_name,
+          (SELECT COUNT(*) FROM tl_cds_cad_individual) as total,
+          (SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tl_cds_cad_individual')) as exists
+        UNION ALL
+        SELECT 
+          'tb_cds_cad_individual' as table_name,
+          (SELECT COUNT(*) FROM tb_cds_cad_individual) as total,
+          (SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tb_cds_cad_individual')) as exists
+      )
+      SELECT table_name, total, exists FROM table_stats;
+    `;
 
+    const statsResult = await client.query(optimizedStatsQuery);
     const stats = {};
+    const currentTime = new Date().toISOString();
 
-    for (const table of tables) {
-      try {
-        // Verificar se a tabela existe
-        const tableExistsQuery = `
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = $1
-          );
-        `;
-        const tableExistsResult = await client.query(tableExistsQuery, [table]);
-        
-        if (tableExistsResult.rows[0].exists) {
-          // Contar registros
-          const countQuery = `SELECT COUNT(*) as total FROM ${table}`;
-          const countResult = await client.query(countQuery);
-          
-          stats[table] = {
-            total: parseInt(countResult.rows[0].total),
-            lastUpdate: new Date().toISOString(),
-            status: 'active'
-          };
-        } else {
-          stats[table] = {
-            total: 0,
-            lastUpdate: new Date().toISOString(),
-            status: 'not_found'
-          };
-        }
-      } catch (tableError) {
-        logger.error(`Erro ao consultar tabela ${table}:`, tableError);
-        stats[table] = {
-          total: 0,
-          lastUpdate: new Date().toISOString(),
-          status: 'error'
-        };
-      }
+    for (const row of statsResult.rows) {
+      stats[row.table_name] = {
+        total: parseInt(row.total) || 0,
+        lastUpdate: currentTime,
+        status: row.exists ? 'active' : 'not_found'
+      };
     }
 
     await client.end();
+
+    // Atualizar cache
+    statsCache = stats;
+    statsCacheTime = now;
+
+    logger.info('📊 Estatísticas atualizadas e armazenadas no cache');
     res.json(stats);
   } catch (error) {
     logger.error('Erro ao buscar estatísticas das tabelas FAT:', error);
@@ -1533,6 +1567,55 @@ app.post('/api/csv/upload', upload.single('csvFile'), (req, res) => {
     }
     
     res.status(500).json({ error: 'Erro ao processar arquivo: ' + error.message });
+  }
+});
+
+// Rota para consultar dados de uma tabela específica
+app.get('/api/tables/:tableName', async (req, res) => {
+  try {
+    const { tableName } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    
+    const offset = (page - 1) * limit;
+    
+    const client = new Client({
+      host: process.env.POSTGRES_HOST,
+      port: process.env.POSTGRES_PORT,
+      database: process.env.POSTGRES_DB,
+      user: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+    });
+
+    await client.connect();
+    
+    // Consulta para contar total de registros
+    const countQuery = `SELECT COUNT(*) as total FROM ${tableName}`;
+    const countResult = await client.query(countQuery);
+    const total = parseInt(countResult.rows[0].total);
+    
+    // Consulta para buscar dados paginados
+    const dataQuery = `SELECT * FROM ${tableName} ORDER BY 1 LIMIT $1 OFFSET $2`;
+    const dataResult = await client.query(dataQuery, [limit, offset]);
+    
+    await client.end();
+    
+    res.json({
+      success: true,
+      data: dataResult.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Erro ao consultar tabela:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao consultar dados da tabela: ' + error.message 
+    });
   }
 });
 

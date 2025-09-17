@@ -205,16 +205,22 @@ class FATTablesMigrator:
             cpf, cns = self.extract_cpf_cns(row_data['cpf_cns'])
             unidade_id = self.get_unidade_saude_id(row_data['ine_equipe'])
             
-            if not cns or not unidade_id:
-                logger.warning(f"CNS ou unidade inválida para {row_data['nome']}")
+            if (not cns and not cpf) or not unidade_id:
+                logger.warning(f"CNS/CPF ou unidade inválida para {row_data['nome']}")
                 return None
             
-            # Verificar se já existe
-            self.cur.execute("SELECT co_seq_cidadao FROM tb_cidadao WHERE nu_cns = %s", (cns,))
-            existing = self.cur.fetchone()
+            # Verificar se já existe (por CNS ou CPF)
+            existing = None
+            if cns:
+                self.cur.execute("SELECT co_seq_cidadao FROM tb_cidadao WHERE nu_cns = %s", (cns,))
+                existing = self.cur.fetchone()
+            
+            if not existing and cpf:
+                self.cur.execute("SELECT co_seq_cidadao FROM tb_cidadao WHERE nu_cpf = %s", (cpf,))
+                existing = self.cur.fetchone()
             
             if existing:
-                logger.info(f"Cidadão já existe: {row_data['nome']} (CNS: {cns})")
+                logger.info(f"Cidadão já existe: {row_data['nome']} (CNS: {cns}, CPF: {cpf})")
                 return existing[0]
             
             # Gerar co_unico_cidadao baseado na unidade de saúde + UUID
@@ -229,17 +235,17 @@ class FATTablesMigrator:
                 INSERT INTO tb_cidadao (
                     co_seq_cidadao, co_localidade, co_unico_cidadao, co_pais_nascimento,
                     co_unico_ultima_ficha, dt_ultima_ficha, co_nacionalidade, st_unificado,
-                    nu_cns, no_cidadao, no_cidadao_filtro, 
+                    nu_cns, nu_cpf, no_cidadao, no_cidadao_filtro, 
                     dt_nascimento, no_sexo, nu_telefone_celular,
                     st_desconhece_nome_mae, dt_atualizado
-                ) VALUES (nextval('sq_cidadao_coseqcidadao'), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (nextval('sq_cidadao_coseqcidadao'), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING co_seq_cidadao
             """
             
             # Processar dados
             nome_filtro = row_data['nome'].lower().strip()
-            sexo_map = {'Masculino': 'Masculino', 'Feminino': 'Feminino', 'M': 'Masculino', 'F': 'Feminino'}
-            no_sexo = sexo_map.get(row_data.get('sexo'), 'Masculino')
+            sexo_map = {'Masculino': 'MASCULINO', 'Feminino': 'FEMININO', 'M': 'MASCULINO', 'F': 'FEMININO'}
+            no_sexo = sexo_map.get(row_data.get('sexo'), 'MASCULINO')
             
             # Converter data de nascimento
             dt_nascimento = None
@@ -266,7 +272,8 @@ class FATTablesMigrator:
                 dt_ultima_ficha,            # dt_ultima_ficha (data atual DDMMAAAA)
                 1,                          # co_nacionalidade (1 = Brasil)
                 0,                          # st_unificado
-                cns,                        # nu_cns
+                cns,                        # nu_cns (15 dígitos)
+                cpf,                        # nu_cpf (11 dígitos)
                 row_data['nome'],           # no_cidadao
                 nome_filtro,                # no_cidadao_filtro
                 dt_nascimento,              # dt_nascimento
@@ -319,9 +326,9 @@ class FATTablesMigrator:
                 except:
                     pass
             
-            # Processar sexo (1=Masculino, 2=Feminino)
-            sexo_map = {'Masculino': 1, 'Feminino': 2, 'M': 1, 'F': 2}
-            co_dim_sexo = sexo_map.get(row_data.get('sexo'), 1)  # Default masculino
+            # Processar sexo (0=Masculino, 1=Feminino conforme tb_sexo)
+            sexo_map = {'Masculino': 0, 'Feminino': 1, 'M': 0, 'F': 1}
+            co_dim_sexo = sexo_map.get(row_data.get('sexo'), 0)  # Default masculino
             
             # Processar telefone celular (somente números)
             nu_telefone_celular = None
@@ -391,8 +398,8 @@ class FATTablesMigrator:
             nu_uuid_dado_transp = nu_uuid_ficha  # Mesmo valor conforme especificação
             
             # Processar dados adicionais
-            sexo_map = {'Masculino': 1, 'Feminino': 2}
-            co_sexo = sexo_map.get(row_data.get('sexo'), 1)  # Default masculino
+            sexo_map = {'Masculino': 0, 'Feminino': 1}
+            co_sexo = sexo_map.get(row_data.get('sexo'), 0)  # Default masculino
             
             # Converter data de nascimento
             dt_nascimento = None
@@ -478,8 +485,8 @@ class FATTablesMigrator:
             nu_uuid_dado_transp = nu_uuid_ficha  # Mesmo valor conforme especificação
             
             # Processar dados adicionais
-            sexo_map = {'Masculino': 1, 'Feminino': 2}
-            co_sexo = sexo_map.get(row_data.get('sexo'), 1)  # Default masculino
+            sexo_map = {'Masculino': 0, 'Feminino': 1}
+            co_sexo = sexo_map.get(row_data.get('sexo'), 0)  # Default masculino
             
             # Converter data de nascimento
             dt_nascimento = None
